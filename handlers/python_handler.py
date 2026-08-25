@@ -122,6 +122,7 @@ def start_file_session(path: str) -> dict:
         if result["done"]:
             with _SESSIONS_LOCK:
                 _SESSIONS.pop(session_id, None)
+            _close_session(session)
         return result
     except Exception as exc:
         return {"error": str(exc), "returncode": -1}
@@ -138,6 +139,7 @@ def send_session_input(session_id: str, value: str) -> dict:
     if result["done"]:
         with _SESSIONS_LOCK:
             _SESSIONS.pop(session_id, None)
+        _close_session(session)
     return result
 
 
@@ -152,6 +154,7 @@ def poll_session(session_id: str) -> dict:
     if result["done"]:
         with _SESSIONS_LOCK:
             _SESSIONS.pop(session_id, None)
+        _close_session(session)
     return result
 
 

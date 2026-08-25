@@ -51,3 +51,15 @@ With English selected, the desktop workspace now loaded without Arabic labels in
 Opening the two-prompt script and selecting Run opened the standalone Execution page, not a bottom panel. It displayed `First:`, accepted `alpha`, displayed `Second:`, accepted `beta`, and returned `Result: alpha|beta` with `[exit 0]`. This verifies the full-page execution view preserves ordinary, sequential Python input.
 
 At a 386 px phone viewport with English selected, Settings rendered `Settings`, `General settings`, `Libraries`, and the English settings subtitle. No bottom panel was present. The standalone Terminal page was visible and its terminal surface measured 358 × 637 px, leaving appropriate mobile margins while preserving a practical command area.
+
+## Inline console input — 25 August 2026
+
+On desktop, the dedicated execution input footer and terminal command footer were removed from the page markup. The execution page rendered the Python prompt `First:` followed by a borderless `›` input line inside the output stream. Entering `alpha` appended the submitted value to that same stream and then rendered the next Python prompt, `Second:`, below it.
+
+The dedicated Terminal page rendered its `$` prompt and editable command line inside its transcript. Executing `printf 'inline-ok'` echoed the command, printed `inline-ok`, and appended a new `$` line inside the same transcript. This confirms that terminal command entry no longer occupies a detached lower control.
+
+The completed desktop execution pass entered `alpha` and `beta` in sequence and returned `Result: alpha|beta` with `[exit 0]`. The output stream contained no remaining runtime input after completion; a session-identity guard prevents a late polling response from adding one back.
+
+In a same-origin 386 px phone viewport, Terminal measured a 356 px wide output area with its inline input nested inside that area, no horizontal overflow, and no legacy terminal footer. `printf 'mobile-inline'` executed successfully and returned a new inline prompt. The execution page measured a 332 px wide output area, displayed its `›` input within that stream, accepted `alpha` and `beta`, returned `Result: alpha|beta` with `[exit 0]`, and retained neither a runtime input nor the former `stdin-row` footer. English-only visible-interface inspection found no Arabic application labels; the sole Arabic string was the deliberately retained language-choice name, `العربية`.
+
+The full automated regression suite also passed: JavaScript unit checks, Python compilation, file-operation tests, and sequential Python session tests. Closing process streams when a session completes removed the previous resource warnings.

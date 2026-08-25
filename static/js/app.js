@@ -17,7 +17,7 @@ const $ = id => document.getElementById(id);
 
 const editorTextarea = $('editor-textarea');
 const editor = new Editor(editorTextarea, $('editor-gutter'), $('syntax-overlay'));
-const terminal = new Terminal($('terminal-output'), $('terminal-input'));
+const terminal = new Terminal($('terminal-output'));
 
 const state = {
   currentFile: null,
@@ -90,9 +90,9 @@ function markDirty() {
 
 function applyLocale() {
   applyTranslations(settings.locale, t);
-  $('terminal-input').placeholder = t('commandPlaceholder');
+  terminal.setPlaceholder(t('commandPlaceholder'));
   $('command-input').placeholder = t('commandPlaceholder');
-  $('runtime-input')?.setAttribute('placeholder', t('runtimePlaceholder'));
+  $('runtime-input')?.setAttribute('aria-label', t('runtimePlaceholder'));
   $('package-filter')?.setAttribute('placeholder', t('searchPackages'));
   $('set-language-value').textContent = LANGUAGE_NAMES[settings.locale] || settings.locale;
   updateSaveStatus();
@@ -196,6 +196,7 @@ async function runCurrentFile() {
 
 function appendRunOutput(text, className = 'out-stdout') {
   if (!text) return;
+  state.runtimeInputRow?.remove();
   const line = document.createElement('pre');
   line.className = className;
   line.textContent = text;
@@ -206,8 +207,12 @@ function appendRunOutput(text, className = 'out-stdout') {
 function stopRunPolling() { clearTimeout(state.runPollTimer); state.runPollTimer = null; }
 
 function setRuntimeInputVisible(visible) {
-  $('stdin-row').classList.toggle('hidden', !visible);
-  if (visible) setTimeout(() => $('runtime-input')?.focus(), 30);
+  if (!state.runtimeInputRow) return;
+  if (!visible) state.runtimeInputRow.remove();
+  else {
+    $('output-content').append(state.runtimeInputRow);
+    setTimeout(() => state.runtimeInput?.focus(), 30);
+  }
 }
 
 function finishRunSession(returncode) {
@@ -230,7 +235,7 @@ function clearExecution() {
 function showTerminalPage() {
   setWorkspaceView('terminal');
   hideSidebar();
-  requestAnimationFrame(() => $('terminal-input').focus());
+  requestAnimationFrame(() => terminal.focus());
 }
 
 /** @param {{ error?: string, output?: string, session?: string, done?: boolean, returncode?: number }} data */
@@ -247,8 +252,10 @@ function handleRunSession(data) {
 function scheduleRunPoll() {
   stopRunPolling();
   if (!state.runSession) return;
+  const sessionId = state.runSession;
   state.runPollTimer = setTimeout(async () => {
-    const data = await apiPost('/api/run/session/poll', { session: state.runSession });
+    const data = await apiPost('/api/run/session/poll', { session: sessionId });
+    if (state.runSession !== sessionId) return;
     if (data.error) { appendRunOutput(data.error, 'out-stderr'); finishRunSession(-1); return; }
     appendRunOutput(data.output || '');
     if (data.done) finishRunSession(data.returncode);
@@ -257,13 +264,15 @@ function scheduleRunPoll() {
 }
 
 async function sendRuntimeInput() {
-  const input = $('runtime-input');
+  const input = state.runtimeInput;
   if (!state.runSession) return;
+  const sessionId = state.runSession;
   const value = input.value;
   input.value = '';
   appendRunOutput(`${value}\n`, 'out-stdin');
   stopRunPolling();
-  const data = await apiPost('/api/run/session/input', { session: state.runSession, value });
+  const data = await apiPost('/api/run/session/input', { session: sessionId, value });
+  if (state.runSession !== sessionId) return;
   if (data.error) { appendRunOutput(data.error, 'out-stderr'); finishRunSession(-1); return; }
   appendRunOutput(data.output || '');
   if (data.done) finishRunSession(data.returncode);
@@ -468,27 +477,22 @@ function renderPackageList() {
 }
 
 function prepareRuntimeInput() {
-  const row = $('stdin-row');
-  row.className = 'runtime-input-row hidden';
+  const row = document.createElement('div');
+  row.className = 'runtime-input-row';
   row.dir = 'ltr';
-  row.replaceChildren();
   const prompt = document.createElement('span');
   prompt.className = 'runtime-prompt';
   prompt.textContent = '›';
   const input = document.createElement('input');
   input.id = 'runtime-input';
   input.className = 'runtime-input';
-  input.placeholder = 'Type input and press Enter';
+  input.setAttribute('aria-label', t('runtimePlaceholder'));
   input.autocomplete = 'off';
   input.spellcheck = false;
   input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); sendRuntimeInput(); } });
-  const send = document.createElement('button');
-  send.id = 'btn-runtime-send';
-  send.className = 'runtime-send';
-  send.type = 'button';
-  send.textContent = 'Enter';
-  send.addEventListener('click', sendRuntimeInput);
-  row.append(prompt, input, send);
+  row.append(prompt, input);
+  state.runtimeInputRow = row;
+  state.runtimeInput = input;
 }
 
 function prepareSettingsTabs() {

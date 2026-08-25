@@ -5,19 +5,16 @@
  */
 
 export class Terminal {
-  /**
-   * @param {HTMLElement} outputEl - scrollable output div
-   * @param {HTMLInputElement} inputEl - command input
-   */
-  constructor(outputEl, inputEl) {
+  /** @param {HTMLElement} outputEl - scrollable terminal stream */
+  constructor(outputEl) {
     this.out    = outputEl;
-    this.input  = inputEl;
+    this.input  = null;
     this.cwd    = null;    // updated after `cd` commands
     this.history = [];
     this.histIdx = -1;
     this._pendingLine = '';
 
-    this._setupInput();
+    this._appendInput();
   }
 
   // ── Public ──────────────────────────────────────────────────
@@ -50,16 +47,33 @@ export class Terminal {
   /** Clear output */
   clear() {
     this.out.innerHTML = '';
+    this._appendInput();
   }
+
+  /** Focus the inline input when the terminal page opens. */
+  focus() { this.input?.focus(); }
+
+  /** Update the non-visual accessible label after a UI language change. */
+  setPlaceholder(value) { if (this.input) this.input.setAttribute('aria-label', value); }
 
   // ── Input & History ─────────────────────────────────────────
 
-  _setupInput() {
-    this.input.addEventListener('keydown', async (e) => {
+  _appendInput() {
+    this._removeInput();
+    const row = document.createElement('div');
+    row.className = 'term-inline-input';
+    const prompt = document.createElement('span');
+    prompt.className = 'term-prompt';
+    prompt.textContent = '$';
+    const input = document.createElement('input');
+    input.className = 'terminal-inline-editor';
+    input.setAttribute('aria-label', 'Type a command and press Enter');
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.addEventListener('keydown', async (e) => {
       if (e.key === 'Enter') {
-        const cmd = this.input.value.trim();
+        const cmd = input.value.trim();
         if (!cmd) return;
-        this.input.value = '';
         this.history.unshift(cmd);
         if (this.history.length > 200) this.history.pop();
         this.histIdx = -1;
@@ -70,23 +84,33 @@ export class Terminal {
         e.preventDefault();
         if (this.histIdx < this.history.length - 1) {
           this.histIdx++;
-          this.input.value = this.history[this.histIdx];
+          input.value = this.history[this.histIdx];
         }
       }
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         if (this.histIdx > 0) {
           this.histIdx--;
-          this.input.value = this.history[this.histIdx];
+          input.value = this.history[this.histIdx];
         } else {
           this.histIdx = -1;
-          this.input.value = '';
+          input.value = '';
         }
       }
     });
+    row.append(prompt, input);
+    this.out.append(row);
+    this.input = input;
+    this._scrollBottom();
+  }
+
+  _removeInput() {
+    this.input?.closest('.term-inline-input')?.remove();
+    this.input = null;
   }
 
   async _execute(cmd) {
+    this._removeInput();
     this.printCmd(cmd);
 
     // Client-side `clear`
@@ -110,6 +134,7 @@ export class Terminal {
         this.printInfo(`→ ${this.cwd}`);
       }
       this._scrollBottom();
+      this._appendInput();
       return;
     }
 
@@ -130,6 +155,7 @@ export class Terminal {
     } catch (err) {
       this.printErr(String(err));
     }
+    this._appendInput();
     this._scrollBottom();
   }
 
