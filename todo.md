@@ -8,6 +8,13 @@
 - [x] Add an explicit disconnect action below Settings that closes the active Python command session.
 - [x] Verify the menu, quick commands, and disconnect flow on desktop and phone, then publish.
 
+## Phone toolbar, input size, and Quick Python keyboard recovery
+
+- [x] Move Run and Kebab to the marked phone-toolbar positions and keep the remaining space clear.
+- [x] Match Execution and Quick Python input typography to the normal terminal text size.
+- [x] Restore native Quick Python input focus when the user taps its prompt after dismissing the phone keyboard.
+- [x] Verify the toolbar, font size, and keyboard recovery on desktop and phone, then publish.
+
 ## Long-running execution diagnosis
 
 - [x] Trace how Python-session return codes and termination signals are produced.

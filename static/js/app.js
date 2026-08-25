@@ -124,7 +124,7 @@ function applySettings() {
   editor.setTabSize(settings.tabSize);
   editor.setWordWrap(settings.wordWrap);
   editor.autoBracket = settings.autoBracket;
-  $('terminal-output').style.fontSize = `${settings.termFontSize}px`;
+  document.documentElement.style.setProperty('--console-font-size', `${settings.termFontSize}px`);
   $('set-font-size').value = settings.fontSize;
   $('set-font-size-val').textContent = `${settings.fontSize}px`;
   $('set-term-font-size').value = settings.termFontSize;
@@ -678,6 +678,17 @@ function prepareQuickPythonInput() {
   input.addEventListener('compositionend', () => { isComposing = false; });
   input.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing) submit(event); });
   input.addEventListener('beforeinput', event => { if (event.inputType === 'insertLineBreak') submit(event); });
+  const restorePromptFocus = event => {
+    if (!state.quickSession || state.quickSubmitting || !state.quickInputRow?.isConnected) return;
+    if (event.target !== input) event.preventDefault();
+    requestAnimationFrame(() => {
+      if (state.quickSession && !state.quickSubmitting && state.quickInputRow?.isConnected) input.focus({ preventScroll: true });
+    });
+  };
+  row.addEventListener('pointerdown', restorePromptFocus);
+  $('quick-python-output').addEventListener('pointerdown', event => {
+    if (event.target === $('quick-python-output')) restorePromptFocus(event);
+  });
   row.append(prompt, input);
   state.quickInputRow = row;
   state.quickInput = input;
