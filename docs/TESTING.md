@@ -43,3 +43,11 @@ A temporary two-prompt script (`terminal_style_input_test.py`) was created throu
 The desktop session test opened that file and displayed `First:` within Output, followed by a single terminal-style input line. Entering `alpha` moved execution to `Second:`; entering `beta` produced `Result: alpha|beta` and `[exit 0]`. This confirms prompts, ordinary line input, sequential program execution and final output work without a detached multi-value form.
 
 The 386 px RTL phone test found and then corrected an older RTL selector that still forced the closed explorer toward the right. The final computed state reports `direction: ltr`, `left: 0px`, and a negative X translation while closed; opening returns the translation to zero. This verifies the explorer stays LTR and enters from the left, regardless of interface locale.
+
+## Standalone execution and terminal pages — in progress
+
+With English selected, the desktop workspace now loaded without Arabic labels in the toolbar, explorer, welcome state or status surface. The new Terminal action opened its own page rather than a bottom panel. Running `printf 'terminal-ok'` inside that page returned `terminal-ok` with the next shell prompt, confirming the terminal page is usable.
+
+Opening the two-prompt script and selecting Run opened the standalone Execution page, not a bottom panel. It displayed `First:`, accepted `alpha`, displayed `Second:`, accepted `beta`, and returned `Result: alpha|beta` with `[exit 0]`. This verifies the full-page execution view preserves ordinary, sequential Python input.
+
+At a 386 px phone viewport with English selected, Settings rendered `Settings`, `General settings`, `Libraries`, and the English settings subtitle. No bottom panel was present. The standalone Terminal page was visible and its terminal surface measured 358 × 637 px, leaving appropriate mobile margins while preserving a practical command area.

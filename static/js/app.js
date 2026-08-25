@@ -28,7 +28,6 @@ const state = {
   newFolderDir: null,
   isDirty: false,
   findCursor: 0,
-  panelCollapsed: false,
   autoSaveTimer: null,
   runSession: null,
   runPollTimer: null,
@@ -93,6 +92,8 @@ function applyLocale() {
   applyTranslations(settings.locale, t);
   $('terminal-input').placeholder = t('commandPlaceholder');
   $('command-input').placeholder = t('commandPlaceholder');
+  $('runtime-input')?.setAttribute('placeholder', t('runtimePlaceholder'));
+  $('package-filter')?.setAttribute('placeholder', t('searchPackages'));
   $('set-language-value').textContent = LANGUAGE_NAMES[settings.locale] || settings.locale;
   updateSaveStatus();
 }
@@ -130,11 +131,15 @@ function applySettings() {
 function setWorkspaceView(view) {
   const showSettings = view === 'settings';
   const showEditor = view === 'editor';
+  const showExecution = view === 'execution';
+  const showTerminal = view === 'terminal';
   $('settings-page').classList.toggle('hidden', !showSettings);
   $('editor-container').classList.toggle('hidden', !showEditor);
+  $('execution-page').classList.toggle('hidden', !showExecution);
+  $('terminal-page').classList.toggle('hidden', !showTerminal);
   $('welcome-screen').classList.toggle('hidden', view !== 'welcome');
-  $('statusbar').classList.toggle('hidden', showSettings);
-  if (showSettings) $('findbar').classList.add('hidden');
+  $('statusbar').classList.toggle('hidden', showSettings || showExecution || showTerminal);
+  if (!showEditor) $('findbar').classList.add('hidden');
 }
 
 /** @param {string} path */
@@ -179,7 +184,8 @@ async function saveFile({ silent = false } = {}) {
 
 async function runCurrentFile() {
   if (!state.currentFile) return toast(t('openFileFirst'), 'error');
-  switchPanel('output');
+  setWorkspaceView('execution');
+  $('execution-file-label').textContent = state.currentFile;
   await saveFile({ silent: true });
   stopRunPolling();
   state.runSession = null;
@@ -212,6 +218,19 @@ function finishRunSession(returncode) {
   result.className = returncode === 0 ? 'out-rc-ok' : 'out-rc-err';
   result.textContent = `[exit ${returncode}]`;
   $('output-content').append(result);
+}
+
+function clearExecution() {
+  stopRunPolling();
+  state.runSession = null;
+  setRuntimeInputVisible(false);
+  $('output-content').innerHTML = `<div class="output-empty"><span>${t('runHint')}</span></div>`;
+}
+
+function showTerminalPage() {
+  setWorkspaceView('terminal');
+  hideSidebar();
+  requestAnimationFrame(() => $('terminal-input').focus());
 }
 
 /** @param {{ error?: string, output?: string, session?: string, done?: boolean, returncode?: number }} data */
@@ -403,15 +422,6 @@ function toggleSidebar(force) {
   else hideSidebar();
 }
 
-function switchPanel(name) {
-  document.querySelectorAll('.ptab').forEach(tab => tab.classList.toggle('active', tab.dataset.ptab === name));
-  document.querySelectorAll('.panel-body').forEach(panel => panel.classList.toggle('active', panel.id === `panel-${name}`));
-  if (state.panelCollapsed) expandPanel();
-}
-
-function expandPanel() { $('bottom-panel').classList.remove('collapsed'); state.panelCollapsed = false; }
-function collapsePanel() { $('bottom-panel').classList.add('collapsed'); state.panelCollapsed = true; }
-
 async function loadRoots() {
   const data = await api('/api/roots');
   state.roots = data.roots || [];
@@ -448,7 +458,7 @@ function renderPackageList() {
   const query = ($('package-filter')?.value || '').trim().toLowerCase();
   const packages = state.packages.filter(pkg => pkg.name.toLowerCase().includes(query));
   $('settings-package-count').textContent = state.packages.length ? `(${state.packages.length})` : '';
-  if (!packages.length) { list.innerHTML = `<div class="pkg-loading">${query ? 'No matching packages' : '—'}</div>`; return; }
+  if (!packages.length) { list.innerHTML = `<div class="pkg-loading">${query ? t('noMatchingPackages') : '—'}</div>`; return; }
   list.replaceChildren(...packages.map(pkg => {
     const row = document.createElement('div');
     row.className = 'pkg-item';
@@ -486,11 +496,11 @@ function prepareSettingsTabs() {
   const libraryCard = $('pkg-list').closest('.settings-card');
   const tabs = document.createElement('nav');
   tabs.className = 'settings-tabs';
-  tabs.innerHTML = '<button class="settings-tab active" data-settings-tab="general" type="button">الإعدادات العامة</button><button class="settings-tab" data-settings-tab="libraries" type="button">المكتبات <span id="settings-package-count"></span></button>';
+  tabs.innerHTML = '<button class="settings-tab active" data-settings-tab="general" type="button" data-i18n="generalSettings">General settings</button><button class="settings-tab" data-settings-tab="libraries" type="button"><span data-i18n="libraries">Libraries</span> <span id="settings-package-count"></span></button>';
   grid.before(tabs);
   const tools = document.createElement('div');
   tools.className = 'library-tools';
-  tools.innerHTML = '<input id="package-filter" class="pkg-input" placeholder="ابحث في المكتبات المثبتة" type="search"/><button class="btn-secondary" id="btn-pkg-refresh" type="button">تحديث القائمة</button>';
+  tools.innerHTML = '<input id="package-filter" class="pkg-input" data-i18n-placeholder="searchPackages" placeholder="Search installed packages" type="search"/><button class="btn-secondary" id="btn-pkg-refresh" data-i18n="refreshList" type="button">Refresh list</button>';
   libraryCard.querySelector('.pkg-list-header').before(tools);
   tabs.addEventListener('click', event => { const tab = event.target.closest('.settings-tab'); if (tab) activateSettingsTab(tab.dataset.settingsTab); });
   $('package-filter').addEventListener('input', renderPackageList);
@@ -510,7 +520,7 @@ async function installPackage() {
   const packageName = $('pkg-name').value.trim();
   const manager = document.querySelector('input[name="mgr"]:checked')?.value || 'auto';
   if (!packageName) return;
-  switchPanel('terminal');
+  showTerminalPage();
   terminal.printInfo(`${t('install')} ${packageName} (${manager})…`);
   const data = await apiPost('/api/install', { package: packageName, manager });
   if (data.error) return terminal.printErr(data.error);
@@ -572,7 +582,7 @@ function configureCommandPalette() {
     { label: 'Open settings', run: showSettings },
     { label: 'Install package', run: () => showSettings({ focusPackages: true }) },
     { label: 'Toggle auto save', run: () => { settings.autoSave = !settings.autoSave; $('set-auto-save').checked = settings.autoSave; persistSettings(); } },
-    { label: 'Focus terminal', shortcut: 'Ctrl+`', run: () => switchPanel('terminal') },
+    { label: 'Open terminal', shortcut: 'Ctrl+`', run: showTerminalPage },
   ]);
 }
 
@@ -612,14 +622,13 @@ function bindEvents() {
   $('new-file-name').addEventListener('keydown', event => { if (event.key === 'Enter') createFile(); }); $('new-folder-name').addEventListener('keydown', event => { if (event.key === 'Enter') createFolder(); });
   $('btn-save').addEventListener('click', saveFile); $('btn-run').addEventListener('click', runCurrentFile);
   $('btn-command').addEventListener('click', () => commandPalette.open()); $('btn-sidebar-toggle').addEventListener('click', () => toggleSidebar()); $('btn-sidebar-close').addEventListener('click', hideSidebar); $('sidebar-backdrop').addEventListener('click', hideSidebar);
-  $('btn-settings-open').addEventListener('click', showSettings); $('btn-install-open').addEventListener('click', () => showSettings({ focusPackages: true })); $('btn-settings-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome'));
+  $('btn-settings-open').addEventListener('click', showSettings); $('btn-terminal-open').addEventListener('click', showTerminalPage); $('btn-settings-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome'));
+  $('btn-execution-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome')); $('btn-terminal-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome'));
   $('welcome-open').addEventListener('click', () => toggleSidebar(true)); $('ft-refresh').addEventListener('click', async () => { await filetree.refresh(); toast(t('refreshed'), 'success'); });
   $('ft-upload').addEventListener('click', () => $('upload-input').click()); $('upload-input').addEventListener('change', uploadFiles);
-  document.querySelectorAll('.ptab').forEach(tab => tab.addEventListener('click', () => switchPanel(tab.dataset.ptab)));
-  $('btn-panel-toggle').addEventListener('click', () => state.panelCollapsed ? expandPanel() : collapsePanel());
-  $('btn-panel-clear').addEventListener('click', () => { terminal.clear(); stopRunPolling(); state.runSession = null; $('output-content').innerHTML = `<div class="output-empty"><span>${t('runHint')}</span></div>`; setRuntimeInputVisible(false); });
+  $('btn-execution-clear').addEventListener('click', clearExecution); $('btn-terminal-clear').addEventListener('click', () => terminal.clear());
 
-  bindSettings(); bindFind(); bindShortcuts(); bindPanelResize();
+  bindSettings(); bindFind(); bindShortcuts();
   editorTextarea.addEventListener('input', markDirty); editorTextarea.addEventListener('keyup', updateCursor); editorTextarea.addEventListener('click', updateCursor);
 }
 
@@ -659,17 +668,10 @@ function bindShortcuts() {
     if (control && key === 'f') { event.preventDefault(); openFind(); }
     if (control && key === 'h') { event.preventDefault(); openFind(true); }
     if (control && key === 'p') { event.preventDefault(); commandPalette.open(); }
-    if (control && key === 'i') { event.preventDefault(); switchPanel('output'); if (state.runSession) setRuntimeInputVisible(true); }
+    if (control && key === 'i' && state.runSession) { event.preventDefault(); setWorkspaceView('execution'); setRuntimeInputVisible(true); }
     if (event.key === 'F5') { event.preventDefault(); runCurrentFile(); }
     if (event.key === 'Escape') { hideContextMenu(); closeFind(); hideSidebar(); document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.add('hidden')); }
   });
-}
-
-function bindPanelResize() {
-  let dragging = false; let startY = 0; let startHeight = 0;
-  $('panel-resize-handle').addEventListener('mousedown', event => { dragging = true; startY = event.clientY; startHeight = $('bottom-panel').offsetHeight; });
-  document.addEventListener('mousemove', event => { if (!dragging) return; const height = Math.max(38, Math.min(window.innerHeight * 0.6, startHeight + startY - event.clientY)); $('bottom-panel').style.height = `${height}px`; });
-  document.addEventListener('mouseup', () => { dragging = false; });
 }
 
 async function init() {
