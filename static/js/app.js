@@ -41,6 +41,7 @@ const settings = {
   autoBracket: true,
   autoSave: false,
   locale: 'ar',
+  theme: 'midnight',
   ...savedPreferences,
 };
 
@@ -92,6 +93,18 @@ function applyLocale() {
   updateSaveStatus();
 }
 
+function applyTheme() {
+  const theme = ['midnight', 'paper', 'termux'].includes(settings.theme) ? settings.theme : 'midnight';
+  settings.theme = theme;
+  document.documentElement.dataset.theme = theme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'paper' ? '#f4f7fb' : theme === 'termux' ? '#071a19' : '#10151d');
+  document.querySelectorAll('.theme-choice').forEach(choice => {
+    const active = choice.dataset.theme === theme;
+    choice.classList.toggle('active', active);
+    choice.setAttribute('aria-checked', String(active));
+  });
+}
+
 function applySettings() {
   editor.setFontSize(settings.fontSize);
   editor.setTabSize(settings.tabSize);
@@ -106,6 +119,7 @@ function applySettings() {
   $('set-word-wrap').checked = settings.wordWrap;
   $('set-auto-bracket').checked = settings.autoBracket;
   $('set-auto-save').checked = settings.autoSave;
+  applyTheme();
   applyLocale();
 }
 
@@ -167,20 +181,22 @@ async function runCurrentFile() {
   const stdin = $('stdin-input').value;
   if (codeNeedsInput() && !stdin.trim()) {
     $('stdin-row').classList.remove('hidden');
+    $('output-content').innerHTML = `<div class="out-info">${t('inputNeeded')}</div>`;
     toast(t('inputNeeded'), 'info');
     $('stdin-input').focus();
     return;
   }
   await saveFile({ silent: true });
-  $('output-display').innerHTML = `<div class="out-info">${t('run')}…</div>`;
+  $('stdin-row').classList.add('hidden');
+  $('output-content').innerHTML = `<div class="out-info">${t('run')}…</div>`;
   renderOutput(await apiPost('/api/run', { path: state.currentFile, stdin }));
 }
 
 /** @param {{ error?: string, stdout?: string, stderr?: string, returncode?: number }} data */
 function renderOutput(data) {
-  const output = $('output-display');
+  const output = $('output-content');
   output.replaceChildren();
-  output.className = 'output-display';
+  output.className = 'output-content';
   if (data.error) { output.classList.add('out-stderr'); output.textContent = data.error; return; }
   for (const [key, className] of [['stdout', 'out-stdout'], ['stderr', 'out-stderr']]) {
     if (!data[key]) continue;
@@ -501,7 +517,7 @@ function bindEvents() {
   $('ft-upload').addEventListener('click', () => $('upload-input').click()); $('upload-input').addEventListener('change', uploadFiles);
   document.querySelectorAll('.ptab').forEach(tab => tab.addEventListener('click', () => switchPanel(tab.dataset.ptab)));
   $('btn-panel-toggle').addEventListener('click', () => state.panelCollapsed ? expandPanel() : collapsePanel());
-  $('btn-panel-clear').addEventListener('click', () => { terminal.clear(); $('output-display').innerHTML = `<div class="output-empty"><span>${t('runHint')}</span></div>`; });
+  $('btn-panel-clear').addEventListener('click', () => { terminal.clear(); $('output-content').innerHTML = `<div class="output-empty"><span>${t('runHint')}</span></div>`; $('stdin-row').classList.add('hidden'); });
   $('stdin-input').addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); runCurrentFile(); } });
 
   bindSettings(); bindFind(); bindShortcuts(); bindPanelResize();
@@ -523,6 +539,7 @@ function bindSettings() {
   $('set-word-wrap').addEventListener('change', event => { settings.wordWrap = event.target.checked; editor.setWordWrap(settings.wordWrap); persistSettings(); });
   $('set-auto-bracket').addEventListener('change', event => { settings.autoBracket = event.target.checked; editor.autoBracket = settings.autoBracket; persistSettings(); });
   $('set-auto-save').addEventListener('change', event => { settings.autoSave = event.target.checked; persistSettings(); });
+  $('theme-options').addEventListener('click', event => { const choice = event.target.closest('.theme-choice'); if (!choice) return; settings.theme = choice.dataset.theme; applyTheme(); persistSettings(); });
   bindDropdown('language-dropdown', 'set-language-trigger', 'set-language-menu', value => { settings.locale = value; persistSettings(); applyLocale(); });
   bindDropdown('tab-size-dropdown', 'set-tab-size-trigger', 'set-tab-size-menu', value => { settings.tabSize = +value; $('set-tab-size-value').textContent = value; editor.setTabSize(settings.tabSize); persistSettings(); });
   $('btn-pkg-install').addEventListener('click', installPackage); $('pkg-name').addEventListener('keydown', event => { if (event.key === 'Enter') installPackage(); });

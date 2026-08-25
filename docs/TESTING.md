@@ -21,3 +21,15 @@ The file-action toolbar now uses explicit SVG icons for creating a file, creatin
 The drawer state was exercised on desktop and in a same-origin 390 px phone viewport. In the phone viewport, opening the drawer set it to visible and interactive with the backdrop enabled. Pressing its close button removed the `open` and backdrop states, with computed `visibility: hidden` and `pointer-events: none`; the drawer was translated beyond its own width. This validates that no right-side edge remains after closing.
 
 A visual desktop pass confirmed that the file toolbar shows separate file-plus, folder-plus, cloud-upload and refresh symbols. A second visual pass in the 386 px embedded phone viewport confirmed that the drawer is absent after close and that the compact workspace remains usable without it.
+
+## Theme and interactive input verification — in progress
+
+The new appearance choices render and the Paper choice updates the document theme at runtime. The first desktop visual pass exposed remaining components with legacy fixed dark surfaces in the Paper theme. Those surfaces will be normalized to theme variables before release; this entry records the corrective finding rather than treating the visual state as passed.
+
+After the corrective style pass, Paper reloaded with a light workspace, light sidebar and a consistent light bottom panel. A temporary `theme_input_test.py` file was created through the application API for the remaining editor and Output interaction checks.
+
+Opening the test file exposed one overlay issue caused by an opaque textarea in Paper. It was fixed by restoring its transparent paint layer while keeping the editor container and syntax overlay on the solid theme surface. The editor then displayed readable, colored Python code on the stable white Paper background.
+
+Running the test revealed an input composer directly inside the Output panel. Entering `Ada` and submitting it produced `Name: Hello, Ada!` with exit code `0`, confirming the end-to-end interactive input flow without a detached field.
+
+An RTL phone viewport test at 386 px loaded the Termux theme correctly. Its closed drawer was hidden and translated on the positive horizontal axis (right side); open state had `right: 0`, no horizontal translation, and visible interaction. Closing restored the right-side translation and disabled pointer events. The test frame was then removed.
