@@ -77,3 +77,9 @@ The desktop pass accepted `desktop` and `verified` through the same live Python 
 The command-palette control no longer reuses the terminal glyph. It now shows a distinct `⌘` mark and is labelled `Keyboard shortcuts`, while the adjacent `>_` control remains the dedicated Terminal action.
 
 The execution session was tested with output emitted before `input()`: `program started`, followed by `enter your name =`. In both the desktop page and a 386 px phone viewport, the runtime input was connected inside the transcript and was the active document element after the prompt appeared. A simulated transcript tap also restored focus to the input. Sending `phone-focus-ok` returned `hello phone-focus-ok` with `[exit 0]`. The complete JavaScript and Python regression suite passed afterwards.
+
+## Android keyboard loop prevention — 25 August 2026
+
+The input row previously received a delayed focus call after every 180 ms polling response, which could repeatedly request the Android keyboard. Focus is now guarded per input transition. The focus request occurs once when a Python prompt first becomes available; polling responses retain the same visible input row without focusing it again. The focus-triggered scrolling listener was removed as well.
+
+In a 386 px phone viewport, a test program remained paused at `value =` for more than four polling cycles. The runtime input remained visible and the instrumented focus call count stayed at one from first prompt through the final measurement. This verifies that the application no longer asks Android to reopen the keyboard repeatedly. JavaScript syntax checks, Python compilation, file-operation tests, and interactive-session tests all passed.

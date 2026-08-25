@@ -1,5 +1,13 @@
 # Current Fix Checklist
 
+## Android keyboard loop prevention
+
+- [x] Identify every automatic focus or scrolling action that can retrigger the Android keyboard.
+- [x] Restrict automatic focus to a single safe prompt transition.
+- [x] Preserve ordinary manual typing and Enter submission without refocusing during input.
+- [x] Verify the phone layout does not create a keyboard open/close loop.
+- [x] Publish the corrective update.
+
 ## Focus recovery and toolbar cleanup
 
 - [x] Identify and remove the duplicated terminal-looking toolbar action while preserving command shortcuts.
