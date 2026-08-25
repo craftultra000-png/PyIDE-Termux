@@ -1,5 +1,13 @@
 # Current Fix Checklist
 
+## Termux launcher and package distribution
+
+- [x] Compare a direct installer plus `pyide` command with a repository-backed `pkg install pyide` package.
+- [x] Add a launcher that starts the local server and opens the browser once it is available.
+- [x] Provide a safe install or update command for phone-only Termux users.
+- [x] Test launcher start, browser opening, and server-reuse behavior.
+- [x] Document the chosen installation path and publish it.
+
 ## Native input touch handling
 
 - [x] Remove transcript-level pointer focus handling that competes with the native input tap on Android.

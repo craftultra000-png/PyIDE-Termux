@@ -40,24 +40,39 @@ PyIDE Termux Pro brings a practical Python workspace to Android without assuming
 
 ## Quick start
 
-Open Termux on your Android phone and run:
+### Install from Git and run with `pyide`
+
+Open Termux on your Android phone and run these lines once:
 
 ```bash
-pkg update
-pkg install python git
-git clone https://github.com/craftultra000-png/PyIDE-Termux.git
-cd PyIDE-Termux
-termux-setup-storage
-python server.py
+pkg update -y
+pkg install -y python git curl
+git clone https://github.com/craftultra000-png/PyIDE-Termux.git ~/PyIDE-Termux
+cd ~/PyIDE-Termux
+bash scripts/install-termux.sh
 ```
 
-Then open your mobile browser at:
+After that, launch PyIDE at any time with one command:
 
-```text
-http://localhost:8080
+```bash
+pyide
 ```
+
+`pyide` starts the local server only if it is not already running, then opens `http://127.0.0.1:8080` in your Android browser. Use `pyide --status` to check it and `pyide --stop` to stop the launcher-owned server.
 
 `termux-setup-storage` is optional, but it enables Android shared storage. The app remains usable with Termux Home when that permission has not been granted.
+
+### Update from Git
+
+When a newer version is available, update the repository and refresh the launcher:
+
+```bash
+cd ~/PyIDE-Termux
+git pull --ff-only origin main
+bash scripts/install-termux.sh
+```
+
+> **Note:** `pkg install pyide` requires a separately maintained Termux package repository or an accepted official Termux package. This project currently uses Git for installation and provides the same short runtime command: `pyide`.
 
 ## Interface highlights
 

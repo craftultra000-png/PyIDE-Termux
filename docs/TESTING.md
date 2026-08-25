@@ -89,3 +89,9 @@ In a 386 px phone viewport, a test program remained paused at `value =` for more
 The execution poller was still calling `append()` on the already-visible runtime row. Although the row did not receive another focus request, moving an active DOM input can blur it on Android and immediately dismiss the keyboard. The row is now appended only when it is not already a child of the output transcript. The transcript-wide pointer handler was also removed, leaving the native input element as the sole focus target.
 
 In the desktop interaction check, a direct click on the runtime input left it connected and active, while its row stayed in the output transcript. During a 900 ms polling window, the row received zero repeated append calls and remained connected. This confirms that a normal tap can no longer be followed by a polling-triggered DOM move.
+
+## Termux launcher verification — 25 August 2026
+
+The repository now contains `scripts/pyide`, a lightweight launcher that starts the local server only when `127.0.0.1:8080` is unavailable, waits for readiness, and asks Android to open the local address. `scripts/install-termux.sh` installs the launcher into `$PREFIX/bin/pyide` after ensuring Python, Git, and curl are available.
+
+The isolated shell test exercises the help screen, a missing-installation error path, reuse of an existing ready server, Android URL-opening invocation, and installation into a temporary Termux-style prefix. It also verifies that the installer requests `python`, `git`, and `curl` through `pkg`. The complete JavaScript and Python regression suite passes with this launcher test included.
