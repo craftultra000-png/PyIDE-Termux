@@ -1,5 +1,12 @@
 # Current Fix Checklist
 
+## Foreground migration and link output
+
+- [x] Detect and stop only a stale PyIDE server belonging to the active Git clone.
+- [x] Start a fresh foreground server after releasing the local port.
+- [x] Print the manual browser URL without trailing punctuation in green.
+- [x] Test the stale-server migration and Ctrl+C cleanup, then publish it.
+
 ## Foreground launcher with Ctrl+C
 
 - [x] Remove all browser-opening behavior from `pyide`.

@@ -101,3 +101,9 @@ The isolated shell test exercises the help screen, a missing-installation error 
 The `pyide` command now runs the Python server in the foreground and does not try to open any browser application. It prints `http://127.0.0.1:8080` for the user to open manually, then remains attached to Termux. The launcher trap stops its child server cleanly when the foreground session receives Ctrl+C.
 
 The launcher test verifies the ready-server path, foreground startup, printed manual-browser address, and child-process cleanup through the same trap used for Ctrl+C. The non-interactive test sends TERM because background Bash jobs ignore INT by design; the Termux foreground behavior remains Ctrl+C. All JavaScript and Python regression tests pass with this test included.
+
+## Stale server migration and terminal URL output — 25 August 2026
+
+The launcher now examines only processes whose working directory matches the active Git clone and whose command line identifies Python `server.py`. If such a previous PyIDE process is holding port 8080, `pyide` stops it, waits for the port to release, and starts a new foreground server owned by the current Termux session. A different process using the port is not stopped automatically.
+
+The manual URL is printed as a standalone ANSI green value with no sentence-ending punctuation: `http://127.0.0.1:8080`. The isolated test simulates a stale clone-owned server, verifies that it is released, checks the raw green escape sequence, starts the new foreground server, and verifies signal cleanup. The JavaScript and Python regression suite passes afterwards.

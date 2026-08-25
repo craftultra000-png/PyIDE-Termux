@@ -16,6 +16,12 @@ count=0
 [[ -f "$state" ]] && count="$(cat "$state")"
 count=$((count + 1))
 printf '%s\n' "$count" >"$state"
+if [[ "$mode" == 'stale-then-ready' ]]; then
+  stale_state="$(ps -o stat= -p "${PYIDE_TEST_STALE_PID:?}" 2>/dev/null || true)"
+  if [[ -n "$stale_state" && "$stale_state" != Z* ]]; then exit 0; fi
+  if [[ -f "${PYIDE_TEST_PYTHON_PID:?}" ]] && kill -0 "$(cat "$PYIDE_TEST_PYTHON_PID")" 2>/dev/null; then exit 0; fi
+  exit 1
+fi
 if [[ "$mode" == 'delayed' && "$count" -lt 2 ]]; then exit 1; fi
 exit 0
 EOF
@@ -44,20 +50,29 @@ if PYIDE_TEST_CURL_STATE="$WORK/missing-curl" PYIDE_HOME="$WORK/missing" bash "$
   exit 1
 fi
 
-export PYIDE_TEST_CURL_MODE=ready
-export PYIDE_TEST_CURL_STATE="$WORK/ready-curl"
-PYIDE_HOME="$ROOT" bash "$ROOT/scripts/pyide" >"$WORK/running-server-output"
-grep -q 'PyIDE is already running at http://127.0.0.1:8080' "$WORK/running-server-output"
-
-export PYIDE_TEST_CURL_MODE=delayed
+STALE_PID_FILE="$WORK/stale.pid"
+sleep 60 &
+STALE_PID="$!"
+printf '%s\n' "$STALE_PID" >"$STALE_PID_FILE"
+FAKE_PROC="$WORK/proc"
+mkdir -p "$FAKE_PROC/$STALE_PID"
+printf 'python\0server.py\0' >"$FAKE_PROC/$STALE_PID/cmdline"
+ln -s "$ROOT" "$FAKE_PROC/$STALE_PID/cwd"
+export PYIDE_TEST_STALE_PID="$STALE_PID"
+export PYIDE_TEST_CURL_MODE=stale-then-ready
 export PYIDE_TEST_CURL_STATE="$WORK/foreground-curl"
-PYIDE_HOME="$ROOT" bash "$ROOT/scripts/pyide" >"$WORK/foreground-output" 2>&1 &
+PYIDE_HOME="$ROOT" PYIDE_PROC_ROOT="$FAKE_PROC" bash "$ROOT/scripts/pyide" >"$WORK/foreground-output" 2>&1 &
 LAUNCHER_PID="$!"
 for _ in $(seq 1 30); do
   grep -q 'Press Ctrl+C in Termux to stop PyIDE.' "$WORK/foreground-output" 2>/dev/null && break
   sleep 0.1
 done
-grep -q 'Open this address manually in your browser: http://127.0.0.1:8080' "$WORK/foreground-output"
+grep -q 'Stopping the previous PyIDE server…' "$WORK/foreground-output"
+grep -Fq $'\033[1;32mhttp://127.0.0.1:8080\033[0m' "$WORK/foreground-output"
+if kill -0 "$STALE_PID" 2>/dev/null; then
+  echo 'stale PyIDE server survived migration' >&2
+  exit 1
+fi
 # Background Bash jobs inherit ignored INT in this non-interactive test shell.
 # TERM exercises the same launcher trap and child cleanup used by Ctrl+C in Termux.
 kill -TERM "$LAUNCHER_PID"
@@ -80,8 +95,8 @@ export PYIDE_TEST_CURL_STATE="$WORK/installed-curl"
 PREFIX="$WORK/prefix" bash "$CUSTOM_REPO/scripts/install-termux.sh" >"$WORK/installer-output"
 test -x "$WORK/prefix/bin/pyide"
 grep -Fq "PYIDE_HOME=$CUSTOM_REPO" "$WORK/prefix/bin/pyide"
-bash "$WORK/prefix/bin/pyide" >"$WORK/installed-launcher-output"
-grep -q 'PyIDE is already running at http://127.0.0.1:8080' "$WORK/installed-launcher-output"
+bash "$WORK/prefix/bin/pyide" --status >"$WORK/installed-launcher-output"
+grep -q 'PyIDE is running at http://127.0.0.1:8080' "$WORK/installed-launcher-output"
 grep -qx 'install -y python git curl' "$PYIDE_TEST_PKG_LOG"
 grep -q 'Installed successfully' "$WORK/installer-output"
 

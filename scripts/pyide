@@ -7,6 +7,7 @@ HOST="127.0.0.1"
 PORT="${PYIDE_PORT:-8080}"
 URL="http://${HOST}:${PORT}"
 SERVER_PID=""
+PROC_ROOT="${PYIDE_PROC_ROOT:-/proc}"
 
 usage() {
   cat <<'EOF'
@@ -19,6 +20,46 @@ EOF
 
 server_ready() {
   curl --fail --silent --max-time 1 "$URL" >/dev/null 2>&1
+}
+
+print_url() {
+  printf '\033[1;32m%s\033[0m\n' "$URL"
+}
+
+find_stale_pyide_pid() {
+  local proc pid cmdline cwd
+  for proc in "$PROC_ROOT"/[0-9]*; do
+    [[ -d "$proc" ]] || continue
+    pid="${proc##*/}"
+    [[ "$pid" == "$$" ]] && continue
+    [[ -r "$proc/cmdline" && -e "$proc/cwd" ]] || continue
+    cmdline="$(tr '\0' ' ' <"$proc/cmdline" 2>/dev/null || true)"
+    cwd="$(readlink -f "$proc/cwd" 2>/dev/null || true)"
+    if [[ "$cwd" == "$APP_DIR" && "$cmdline" == *python* && "$cmdline" == *server.py* ]]; then
+      printf '%s\n' "$pid"
+      return 0
+    fi
+  done
+  return 1
+}
+
+release_stale_server() {
+  local stale_pid
+  stale_pid="$(find_stale_pyide_pid || true)"
+  if [[ -z "$stale_pid" ]]; then
+    printf 'Port %s is already used by another process.\n' "$PORT" >&2
+    printf 'Stop that process first, then run pyide again.\n' >&2
+    exit 1
+  fi
+
+  printf 'Stopping the previous PyIDE server…\n'
+  kill "$stale_pid" 2>/dev/null || true
+  for _ in $(seq 1 20); do
+    if ! server_ready; then return 0; fi
+    sleep 0.1
+  done
+  printf 'The previous PyIDE server did not release port %s.\n' "$PORT" >&2
+  exit 1
 }
 
 stop_foreground_server() {
@@ -51,9 +92,7 @@ if ! command -v python >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; the
 fi
 
 if server_ready; then
-  printf 'PyIDE is already running at %s.\n' "$URL"
-  printf 'Use Ctrl+C in the Termux session that started it to stop the server.\n'
-  exit 0
+  release_stale_server
 fi
 
 printf 'Starting PyIDE…\n'
@@ -76,6 +115,7 @@ if ! server_ready; then
 fi
 
 printf 'PyIDE is ready at %s\n' "$URL"
-printf 'Open this address manually in your browser: %s\n' "$URL"
+printf 'Open this address manually in your browser:\n'
+print_url
 printf 'Press Ctrl+C in Termux to stop PyIDE.\n'
 wait "$SERVER_PID"
