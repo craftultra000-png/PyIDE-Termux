@@ -159,7 +159,9 @@ export class FileTree {
         this._selectedDir = entry.path;
         this._toggleDir(div, entry);
       } else {
-        this.onOpen(entry);
+        // Opening a file is a single, direct action. The coordinator receives
+        // the path and can immediately switch the mobile workbench to editor.
+        this.onOpen(entry.path);
       }
     });
 

@@ -174,7 +174,6 @@ class IDEHandler(BaseHTTPRequestHandler):
                 ("termux", config.TERMUX_HOME, "Termux Home"),
                 ("shared", config.TERMUX_SHARED, "Shared Storage"),
                 ("internal", config.SDCARD, "Internal Storage"),
-                ("volumes", config.STORAGE, "Storage Volumes"),
             ]
             roots = [
                 {"id": root_id, "path": root_path, "label": label}
