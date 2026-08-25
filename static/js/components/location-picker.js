@@ -1,5 +1,8 @@
 import { findRootForPath, parentPath } from '../core/path-utils.js';
 
+const FOLDER_ICON = `<svg viewBox="0 0 24 24" class="picker-folder-icon" aria-hidden="true"><path d="M3 6.5a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>`;
+const UP_ICON = `<svg viewBox="0 0 24 24" class="picker-folder-icon" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>`;
+
 /** @typedef {{ id: string, path: string, label: string }} StorageRoot */
 
 /**
@@ -82,7 +85,7 @@ export class LocationPicker {
   makeUpButton() {
     const button = document.createElement('button');
     button.className = 'picker-row up';
-    button.innerHTML = '<span>↥</span><span>..</span>';
+    button.innerHTML = `${UP_ICON}<span>..</span>`;
     button.addEventListener('click', () => { this.path = parentPath(this.path, this.root.path); this.render(); });
     return button;
   }
@@ -91,7 +94,7 @@ export class LocationPicker {
   makeFolderButton(entry) {
     const button = document.createElement('button');
     button.className = 'picker-row';
-    button.innerHTML = `<span class="folder-symbol">□</span><span>${entry.name}</span>`;
+    button.innerHTML = `${FOLDER_ICON}<span>${entry.name}</span>`;
     button.addEventListener('click', () => { this.path = entry.path; this.render(); });
     return button;
   }

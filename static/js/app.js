@@ -322,18 +322,29 @@ function showSettings({ focusPackages = false } = {}) {
   if (focusPackages) requestAnimationFrame(() => $('pkg-name').focus());
 }
 
-function toggleSidebar(force) {
-  const sidebar = $('sidebar');
-  const open = force ?? !sidebar.classList.contains('open');
-  if (isMobile()) {
-    sidebar.classList.toggle('open', open);
-    $('sidebar-backdrop').classList.toggle('visible', open);
-  } else {
-    sidebar.classList.toggle('collapsed', !open);
-  }
+function sidebarIsOpen() {
+  return isMobile() ? $('sidebar').classList.contains('open') : !$('sidebar').classList.contains('collapsed');
 }
 
-function hideSidebar() { if (isMobile()) toggleSidebar(false); }
+function openSidebar() {
+  $('sidebar').classList.remove('collapsed');
+  $('sidebar').classList.add('open');
+  $('sidebar-backdrop').classList.add('visible');
+}
+
+function hideSidebar() {
+  // Never rely on a viewport measurement alone: removing both visual state
+  // classes guarantees the drawer is gone after opening a file or pressing X.
+  $('sidebar').classList.remove('open');
+  $('sidebar-backdrop').classList.remove('visible');
+  if (!isMobile()) $('sidebar').classList.add('collapsed');
+}
+
+function toggleSidebar(force) {
+  const shouldOpen = force ?? !sidebarIsOpen();
+  if (shouldOpen) openSidebar();
+  else hideSidebar();
+}
 
 function switchPanel(name) {
   document.querySelectorAll('.ptab').forEach(tab => tab.classList.toggle('active', tab.dataset.ptab === name));
