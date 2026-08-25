@@ -217,7 +217,7 @@ function setRuntimeInputVisible(visible, { focus = false } = {}) {
     const output = $('output-content');
     output.querySelectorAll('.console-prompt-fragment').forEach(line => line.classList.remove('console-prompt-fragment'));
     state.runtimeInputRow.classList.remove('runtime-input-row--inline');
-    output.append(state.runtimeInputRow);
+    if (state.runtimeInputRow.parentElement !== output) output.append(state.runtimeInputRow);
     if (focus && !state.runtimeFocusRequested) {
       state.runtimeFocusRequested = true;
       requestAnimationFrame(() => {
@@ -663,10 +663,6 @@ function bindEvents() {
   $('welcome-open').addEventListener('click', () => toggleSidebar(true)); $('ft-refresh').addEventListener('click', async () => { await filetree.refresh(); toast(t('refreshed'), 'success'); });
   $('ft-upload').addEventListener('click', () => $('upload-input').click()); $('upload-input').addEventListener('change', uploadFiles);
   $('btn-execution-clear').addEventListener('click', clearExecution); $('btn-terminal-clear').addEventListener('click', () => terminal.clear());
-  $('output-content').addEventListener('pointerdown', event => {
-    if (!state.runSession || !state.runtimeInputRow?.isConnected || event.target === state.runtimeInput) return;
-    state.runtimeInput.focus({ preventScroll: true });
-  });
 
   bindSettings(); bindFind(); bindShortcuts();
   editorTextarea.addEventListener('input', markDirty); editorTextarea.addEventListener('keyup', updateCursor); editorTextarea.addEventListener('click', updateCursor);

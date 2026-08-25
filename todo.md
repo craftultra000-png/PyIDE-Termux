@@ -1,5 +1,12 @@
 # Current Fix Checklist
 
+## Native input touch handling
+
+- [x] Remove transcript-level pointer focus handling that competes with the native input tap on Android.
+- [x] Preserve direct native focus, keyboard opening, and Enter submission on the runtime input.
+- [x] Verify tapping the input keeps the phone keyboard open and accepts typing.
+- [x] Run regression tests and publish the touch-interaction update.
+
 ## Android keyboard loop prevention
 
 - [x] Identify every automatic focus or scrolling action that can retrigger the Android keyboard.

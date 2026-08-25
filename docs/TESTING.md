@@ -83,3 +83,9 @@ The execution session was tested with output emitted before `input()`: `program 
 The input row previously received a delayed focus call after every 180 ms polling response, which could repeatedly request the Android keyboard. Focus is now guarded per input transition. The focus request occurs once when a Python prompt first becomes available; polling responses retain the same visible input row without focusing it again. The focus-triggered scrolling listener was removed as well.
 
 In a 386 px phone viewport, a test program remained paused at `value =` for more than four polling cycles. The runtime input remained visible and the instrumented focus call count stayed at one from first prompt through the final measurement. This verifies that the application no longer asks Android to reopen the keyboard repeatedly. JavaScript syntax checks, Python compilation, file-operation tests, and interactive-session tests all passed.
+
+## Native runtime-input touch stability — 25 August 2026
+
+The execution poller was still calling `append()` on the already-visible runtime row. Although the row did not receive another focus request, moving an active DOM input can blur it on Android and immediately dismiss the keyboard. The row is now appended only when it is not already a child of the output transcript. The transcript-wide pointer handler was also removed, leaving the native input element as the sole focus target.
+
+In the desktop interaction check, a direct click on the runtime input left it connected and active, while its row stayed in the output transcript. During a 900 ms polling window, the row received zero repeated append calls and remained connected. This confirms that a normal tap can no longer be followed by a polling-triggered DOM move.
