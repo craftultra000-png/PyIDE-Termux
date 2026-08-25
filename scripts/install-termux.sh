@@ -26,4 +26,6 @@ printf 'PYIDE_HOME=%q exec bash %q "$@"\n' "$APP_DIR" "$LAUNCHER" >>"$TARGET"
 chmod 755 "$TARGET"
 
 printf '\nInstalled successfully. Start PyIDE with:\n\n  pyide\n\n'
+printf 'Keep Termux open while PyIDE runs; open http://127.0.0.1:8080 manually in your browser.\n'
+printf 'Press Ctrl+C in Termux to stop PyIDE.\n\n'
 printf 'Optional Android shared-storage access:\n\n  termux-setup-storage\n\n'

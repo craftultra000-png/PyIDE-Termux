@@ -1,5 +1,13 @@
 # Current Fix Checklist
 
+## Foreground launcher with Ctrl+C
+
+- [x] Remove all browser-opening behavior from `pyide`.
+- [x] Remove الخلفية وإدارة PID من مسار تشغيل pyide الأساسي.
+- [x] Print the local address while keeping the Python server attached to Termux.
+- [x] Verify Ctrl+C reaches the foreground Python server and ends pyide cleanly.
+- [x] Update tests and instructions, then publish the behavior change.
+
 ## Termux launcher and package distribution
 
 - [x] Compare a direct installer plus `pyide` command with a repository-backed `pkg install pyide` package.

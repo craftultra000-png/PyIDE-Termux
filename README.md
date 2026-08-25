@@ -58,7 +58,7 @@ After that, launch PyIDE at any time with one command:
 pyide
 ```
 
-`pyide` starts the local server only if it is not already running, then opens `http://127.0.0.1:8080` in your Android browser. Use `pyide --status` to check it and `pyide --stop` to stop the launcher-owned server.
+`pyide` starts the local server only if it is not already running and stays active in Termux so you can stop it using **Ctrl+C**, just like `python server.py`. Open `http://127.0.0.1:8080` manually in your Android browser. Use `pyide --status` to check whether a server is already running.
 
 The installer records the actual Git-clone folder automatically, so the command works whether you cloned the project as `~/PyIDE-Termux`, `~/pyide-termux`, or another directory name.
 

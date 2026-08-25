@@ -95,3 +95,9 @@ In the desktop interaction check, a direct click on the runtime input left it co
 The repository now contains `scripts/pyide`, a lightweight launcher that starts the local server only when `127.0.0.1:8080` is unavailable, waits for readiness, and asks Android to open the local address. `scripts/install-termux.sh` installs the launcher into `$PREFIX/bin/pyide` after ensuring Python, Git, and curl are available.
 
 The isolated shell test exercises the help screen, a missing-installation error path, reuse of an existing ready server, Android URL-opening invocation, and installation into a temporary Termux-style prefix. It also verifies that the installer requests `python`, `git`, and `curl` through `pkg`. The complete JavaScript and Python regression suite passes with this launcher test included.
+
+## Foreground `pyide` launcher verification — 25 August 2026
+
+The `pyide` command now runs the Python server in the foreground and does not try to open any browser application. It prints `http://127.0.0.1:8080` for the user to open manually, then remains attached to Termux. The launcher trap stops its child server cleanly when the foreground session receives Ctrl+C.
+
+The launcher test verifies the ready-server path, foreground startup, printed manual-browser address, and child-process cleanup through the same trap used for Ctrl+C. The non-interactive test sends TERM because background Bash jobs ignore INT by design; the Termux foreground behavior remains Ctrl+C. All JavaScript and Python regression tests pass with this test included.

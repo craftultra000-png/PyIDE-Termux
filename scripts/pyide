@@ -1,19 +1,19 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# PyIDE Termux launcher — starts the local server once and opens it in Android.
+# PyIDE Termux launcher — keeps the local server in the foreground for Ctrl+C.
 set -Eeuo pipefail
 
 APP_DIR="${PYIDE_HOME:-$HOME/PyIDE-Termux}"
 HOST="127.0.0.1"
 PORT="${PYIDE_PORT:-8080}"
 URL="http://${HOST}:${PORT}"
-PID_FILE="${PYIDE_PID_FILE:-$HOME/.pyide-termux.pid}"
-LOG_FILE="${PYIDE_LOG_FILE:-$HOME/.pyide-termux.log}"
+SERVER_PID=""
 
 usage() {
   cat <<'EOF'
-Usage: pyide [--status|--stop]
+Usage: pyide [--status]
 
-Starts PyIDE Termux at http://127.0.0.1:8080 and opens it in Android.
+Starts PyIDE Termux at http://127.0.0.1:8080 and stays attached to Termux.
+Open the address in your browser manually. Press Ctrl+C to stop the server.
 EOF
 }
 
@@ -21,35 +21,15 @@ server_ready() {
   curl --fail --silent --max-time 1 "$URL" >/dev/null 2>&1
 }
 
-stop_server() {
-  if [[ ! -f "$PID_FILE" ]]; then
-    printf 'PyIDE is not running.\n'
-    return 0
-  fi
-
-  local pid
-  pid="$(cat "$PID_FILE")"
-  if kill -0 "$pid" 2>/dev/null; then
-    kill "$pid"
-    printf 'PyIDE stopped.\n'
-  else
-    printf 'No active PyIDE process was found.\n'
-  fi
-  rm -f "$PID_FILE"
-}
-
-open_browser() {
-  if command -v termux-open-url >/dev/null 2>&1; then
-    termux-open-url "$URL"
-  elif command -v am >/dev/null 2>&1; then
-    am start -a android.intent.action.VIEW -d "$URL" >/dev/null 2>&1 || true
-  else
-    printf 'Open this address in your browser: %s\n' "$URL"
+stop_foreground_server() {
+  if [[ -n "$SERVER_PID" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
+    printf '\nStopping PyIDE…\n'
+    kill "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
   fi
 }
 
 case "${1:-}" in
-  --stop) stop_server; exit 0 ;;
   --status)
     if server_ready; then printf 'PyIDE is running at %s\n' "$URL"; else printf 'PyIDE is not running.\n'; fi
     exit 0
@@ -70,24 +50,32 @@ if ! command -v python >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; the
   exit 1
 fi
 
-if ! server_ready; then
-  printf 'Starting PyIDE…\n'
-  (
-    cd "$APP_DIR"
-    nohup python server.py >>"$LOG_FILE" 2>&1 &
-    printf '%s\n' "$!" >"$PID_FILE"
-  )
-
-  for _ in $(seq 1 30); do
-    if server_ready; then break; fi
-    sleep 0.2
-  done
+if server_ready; then
+  printf 'PyIDE is already running at %s.\n' "$URL"
+  printf 'Use Ctrl+C in the Termux session that started it to stop the server.\n'
+  exit 0
 fi
 
+printf 'Starting PyIDE…\n'
+(
+  cd "$APP_DIR"
+  exec python server.py
+) &
+SERVER_PID="$!"
+trap 'stop_foreground_server; exit 130' INT TERM
+
+for _ in $(seq 1 30); do
+  if server_ready; then break; fi
+  sleep 0.2
+done
+
 if ! server_ready; then
-  printf 'PyIDE did not start. Read the log: %s\n' "$LOG_FILE" >&2
+  printf 'PyIDE did not start.\n' >&2
+  stop_foreground_server
   exit 1
 fi
 
 printf 'PyIDE is ready at %s\n' "$URL"
-open_browser
+printf 'Open this address manually in your browser: %s\n' "$URL"
+printf 'Press Ctrl+C in Termux to stop PyIDE.\n'
+wait "$SERVER_PID"
