@@ -44,9 +44,6 @@ class PythonSession:
         self._pending = bytearray()
         os.set_blocking(self.process.stdout.fileno(), False)
 
-    def _expired(self) -> bool:
-        return time.monotonic() - self.started_at > RUN_TIMEOUT
-
     def _drain(self, wait_seconds: float = 0.0) -> str:
         """Collect every byte currently available, including input() prompts."""
         fd = self.process.stdout.fileno()
@@ -73,8 +70,6 @@ class PythonSession:
         return output
 
     def snapshot(self, wait_seconds: float = 0.0) -> dict:
-        if self._expired() and self.process.poll() is None:
-            self.process.kill()
         output = self._drain(wait_seconds)
         returncode = self.process.poll()
         done = returncode is not None
@@ -95,14 +90,22 @@ class PythonSession:
             pass
         return self.snapshot(wait_seconds=0.12)
 
+    def stop(self) -> dict:
+        """End an interactive process when the user leaves Execution."""
+        if self.process.poll() is None:
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=0.5)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+                self.process.wait(timeout=0.5)
+        return self.snapshot()
+
 
 def _cleanup_sessions() -> None:
-    now = time.monotonic()
     with _SESSIONS_LOCK:
         for session_id, session in list(_SESSIONS.items()):
-            if session.process.poll() is not None or now - session.started_at > RUN_TIMEOUT:
-                if session.process.poll() is None:
-                    session.process.kill()
+            if session.process.poll() is not None:
                 _close_session(session)
                 _SESSIONS.pop(session_id, None)
 
@@ -155,6 +158,19 @@ def poll_session(session_id: str) -> dict:
         with _SESSIONS_LOCK:
             _SESSIONS.pop(session_id, None)
         _close_session(session)
+    return result
+
+
+def stop_session(session_id: str) -> dict:
+    """End a live Execution session after its page has been left."""
+    with _SESSIONS_LOCK:
+        session = _SESSIONS.pop(session_id, None)
+    if not session:
+        return {"done": True, "returncode": None}
+    result = session.stop()
+    result["session"] = session_id
+    result["stopped"] = True
+    _close_session(session)
     return result
 
 

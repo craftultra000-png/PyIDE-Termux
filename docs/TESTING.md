@@ -107,3 +107,11 @@ The launcher test verifies the ready-server path, foreground startup, printed ma
 The launcher now examines only processes whose working directory matches the active Git clone and whose command line identifies Python `server.py`. If such a previous PyIDE process is holding port 8080, `pyide` stops it, waits for the port to release, and starts a new foreground server owned by the current Termux session. A different process using the port is not stopped automatically.
 
 The manual URL is printed as a standalone ANSI green value with no sentence-ending punctuation: `http://127.0.0.1:8080`. The isolated test simulates a stale clone-owned server, verifies that it is released, checks the raw green escape sequence, starts the new foreground server, and verifies signal cleanup. The JavaScript and Python regression suite passes afterwards.
+
+## Unlimited Execution session lifecycle — 25 August 2026
+
+Interactive Python sessions no longer use the former 30-second termination path. The focused Python test simulates a session that is already 31 seconds old, polls it, confirms that it remains live, and then stops it explicitly. A direct API check also started a live session, called `POST /api/run/session/stop`, and verified that a later poll reports the session as unavailable.
+
+The browser pass used a Python file that printed `alive` and slept for 60 seconds. On desktop, the session stayed active in Execution and displayed its inline input; leaving through Back to editor, Terminal, or Settings sent the stop request. Pressing Run again sent stop for the existing session before starting its replacement. Clear erased only visible output while polling continued, so it did not terminate the process.
+
+The same flow was verified in a 390 px phone viewport. The compact drawer, editor, and Execution page stayed within the viewport. The live session printed `alive`; Clear preserved it, and Back to editor sent the stop request. JavaScript syntax checks, Python compilation, file-operation tests, Python-session tests, and launcher tests passed afterwards.

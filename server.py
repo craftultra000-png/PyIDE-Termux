@@ -30,7 +30,7 @@ from handlers.file_handler    import (list_dir, read_file, write_file,
                                        move_path, copy_path,
                                        upload_file, download_info)
 from handlers.python_handler  import (run_file, run_snippet, start_file_session,
-                                      send_session_input, poll_session)
+                                      send_session_input, poll_session, stop_session)
 from handlers.install_handler import install_package, list_installed
 from handlers.terminal_handler import run_command
 
@@ -206,6 +206,8 @@ class IDEHandler(BaseHTTPRequestHandler):
             self._api_run_session_input()
         elif path == "/api/run/session/poll":
             self._api_run_session_poll()
+        elif path == "/api/run/session/stop":
+            self._api_run_session_stop()
         elif path == "/api/cmd":
             self._api_cmd()
         elif path == "/api/install":
@@ -293,6 +295,13 @@ class IDEHandler(BaseHTTPRequestHandler):
             self._send_error_json("Provide a session")
             return
         self._send_json(poll_session(body["session"]))
+
+    def _api_run_session_stop(self):
+        body = self._read_json_body()
+        if body is None or not body.get("session"):
+            self._send_error_json("Provide a session")
+            return
+        self._send_json(stop_session(body["session"]))
 
     def _api_cmd(self):
         body = self._read_json_body()

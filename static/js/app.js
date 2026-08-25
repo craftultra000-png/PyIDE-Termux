@@ -131,6 +131,7 @@ function applySettings() {
 }
 
 function setWorkspaceView(view) {
+  if (view !== 'execution' && state.runSession) void stopExecutionSession();
   const showSettings = view === 'settings';
   const showEditor = view === 'editor';
   const showExecution = view === 'execution';
@@ -189,11 +190,7 @@ async function runCurrentFile() {
   setWorkspaceView('execution');
   $('execution-file-label').textContent = state.currentFile;
   await saveFile({ silent: true });
-  stopRunPolling();
-  state.runSession = null;
-  state.runtimeSubmitting = false;
-  state.runtimeFocusRequested = false;
-  setRuntimeInputVisible(false);
+  await stopExecutionSession();
   $('output-content').innerHTML = `<div class="out-info">${t('run')}…</div>`;
   handleRunSession(await apiPost('/api/run/session/start', { path: state.currentFile }));
 }
@@ -209,6 +206,17 @@ function appendRunOutput(text, className = 'out-stdout') {
 }
 
 function stopRunPolling() { clearTimeout(state.runPollTimer); state.runPollTimer = null; }
+
+async function stopExecutionSession() {
+  const sessionId = state.runSession;
+  if (!sessionId) return;
+  stopRunPolling();
+  state.runSession = null;
+  state.runtimeSubmitting = false;
+  state.runtimeFocusRequested = false;
+  setRuntimeInputVisible(false);
+  try { await apiPost('/api/run/session/stop', { session: sessionId }); } catch { /* navigation must remain immediate */ }
+}
 
 function setRuntimeInputVisible(visible, { focus = false } = {}) {
   if (!state.runtimeInputRow) return;
@@ -241,12 +249,9 @@ function finishRunSession(returncode) {
 }
 
 function clearExecution() {
-  stopRunPolling();
-  state.runSession = null;
-  state.runtimeSubmitting = false;
-  state.runtimeFocusRequested = false;
-  setRuntimeInputVisible(false);
-  $('output-content').innerHTML = `<div class="output-empty"><span>${t('runHint')}</span></div>`;
+  $('output-content').replaceChildren();
+  if (state.runSession) setRuntimeInputVisible(true);
+  else $('output-content').innerHTML = `<div class="output-empty"><span>${t('runHint')}</span></div>`;
 }
 
 function showTerminalPage() {

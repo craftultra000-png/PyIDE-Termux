@@ -1,5 +1,19 @@
 # Current Fix Checklist
 
+## Long-running execution diagnosis
+
+- [x] Trace how Python-session return codes and termination signals are produced.
+- [x] Check whether PyIDE has an explicit timeout or kill path for long-running jobs.
+- [x] Improve user-visible diagnostics for forced process termination if appropriate.
+- [x] Test a long-running session and publish the verified fix.
+
+## Unlimited execution-session lifecycle
+
+- [x] Remove the fixed timeout from interactive Execution sessions.
+- [x] Add an API action that ends a live execution session cleanly.
+- [x] End the live session only when the user leaves Execution or starts another run.
+- [x] Test a long-running task and session termination from page navigation.
+
 ## Foreground migration and link output
 
 - [x] Detect and stop only a stale PyIDE server belonging to the active Git clone.
