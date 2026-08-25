@@ -5,8 +5,8 @@ import tempfile
 import time
 import unittest
 
-from handlers.python_handler import (run_file, start_file_session, send_session_input,
-                                     poll_session, stop_session)
+from handlers.python_handler import (run_file, start_file_session, start_repl_session,
+                                     send_session_input, poll_session, stop_session)
 
 
 class PythonHandlerTests(unittest.TestCase):
@@ -67,6 +67,26 @@ class PythonHandlerTests(unittest.TestCase):
             os.unlink(path)
 
         self.assertTrue(stopped["done"])
+        self.assertTrue(stopped["stopped"])
+
+    def test_quick_repl_executes_one_line_and_stays_available(self):
+        started = start_repl_session()
+        self.assertIn("session", started)
+        session_id = started["session"]
+        try:
+            result = send_session_input(session_id, "print('quick-ok')")
+            output = result["output"]
+            for _ in range(6):
+                if "quick-ok" in output:
+                    break
+                time.sleep(0.05)
+                result = poll_session(session_id)
+                output += result["output"]
+            self.assertFalse(result["done"])
+            self.assertIn("quick-ok", output)
+        finally:
+            stopped = stop_session(session_id)
+
         self.assertTrue(stopped["stopped"])
 
 

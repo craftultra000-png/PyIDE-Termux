@@ -1,5 +1,13 @@
 # Current Fix Checklist
 
+## Kebab menu and quick Python commands
+
+- [x] Replace the PyIDE Termux header wordmark with a Kebab menu and keep Run beside it.
+- [x] Move shortcuts, new file, save, Terminal, and Settings into the Kebab menu.
+- [x] Add a dedicated quick-Python page that executes one entered line when Enter is pressed.
+- [x] Add an explicit disconnect action below Settings that closes the active Python command session.
+- [x] Verify the menu, quick commands, and disconnect flow on desktop and phone, then publish.
+
 ## Long-running execution diagnosis
 
 - [x] Trace how Python-session return codes and termination signals are produced.

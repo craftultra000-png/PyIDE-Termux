@@ -12,7 +12,7 @@ import time
 import uuid
 import threading
 import select
-from config import PYTHON_BIN, RUN_TIMEOUT
+from config import PYTHON_BIN, RUN_TIMEOUT, TERMUX_HOME
 
 
 _SESSIONS: dict[str, "PythonSession"] = {}
@@ -28,15 +28,21 @@ def _close_session(session: "PythonSession") -> None:
 
 
 class PythonSession:
-    """A short-lived unbuffered Python process for terminal-style UI input."""
+    """An unbuffered Python process for file runs or the quick REPL."""
 
-    def __init__(self, path: str):
+    def __init__(self, path: str | None = None, *, command: list[str] | None = None,
+                 cwd: str | None = None):
+        if command is None:
+            if not path:
+                raise ValueError("A Python file or command is required")
+            command = [PYTHON_BIN, "-u", path]
+            cwd = cwd or os.path.dirname(path)
         self.process = subprocess.Popen(
-            [PYTHON_BIN, "-u", path],
+            command,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            cwd=os.path.dirname(path),
+            cwd=cwd,
             bufsize=0,
         )
         self.started_at = time.monotonic()
@@ -117,6 +123,25 @@ def start_file_session(path: str) -> dict:
     _cleanup_sessions()
     try:
         session = PythonSession(path)
+        session_id = uuid.uuid4().hex
+        with _SESSIONS_LOCK:
+            _SESSIONS[session_id] = session
+        result = session.snapshot(wait_seconds=0.12)
+        result["session"] = session_id
+        if result["done"]:
+            with _SESSIONS_LOCK:
+                _SESSIONS.pop(session_id, None)
+            _close_session(session)
+        return result
+    except Exception as exc:
+        return {"error": str(exc), "returncode": -1}
+
+
+def start_repl_session() -> dict:
+    """Start an unbuffered local Python REPL for one-line quick commands."""
+    _cleanup_sessions()
+    try:
+        session = PythonSession(command=[PYTHON_BIN, "-u", "-q", "-i"], cwd=TERMUX_HOME)
         session_id = uuid.uuid4().hex
         with _SESSIONS_LOCK:
             _SESSIONS[session_id] = session

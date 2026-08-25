@@ -33,6 +33,11 @@ const state = {
   runPollTimer: null,
   runtimeSubmitting: false,
   runtimeFocusRequested: false,
+  quickSession: null,
+  quickPollTimer: null,
+  quickSubmitting: false,
+  quickInputRow: null,
+  quickInput: null,
   packages: [],
   settingsTab: 'general',
 };
@@ -95,6 +100,8 @@ function applyLocale() {
   terminal.setPlaceholder(t('commandPlaceholder'));
   $('command-input').placeholder = t('commandPlaceholder');
   $('runtime-input')?.setAttribute('aria-label', t('runtimePlaceholder'));
+  $('quick-python-input')?.setAttribute('placeholder', t('quickPythonPlaceholder'));
+  $('quick-python-input')?.setAttribute('aria-label', t('quickPythonPlaceholder'));
   $('package-filter')?.setAttribute('placeholder', t('searchPackages'));
   $('set-language-value').textContent = LANGUAGE_NAMES[settings.locale] || settings.locale;
   updateSaveStatus();
@@ -132,16 +139,19 @@ function applySettings() {
 
 function setWorkspaceView(view) {
   if (view !== 'execution' && state.runSession) void stopExecutionSession();
+  if (view !== 'quick' && state.quickSession) void stopQuickPythonSession();
   const showSettings = view === 'settings';
   const showEditor = view === 'editor';
   const showExecution = view === 'execution';
   const showTerminal = view === 'terminal';
+  const showQuickPython = view === 'quick';
   $('settings-page').classList.toggle('hidden', !showSettings);
   $('editor-container').classList.toggle('hidden', !showEditor);
   $('execution-page').classList.toggle('hidden', !showExecution);
   $('terminal-page').classList.toggle('hidden', !showTerminal);
+  $('quick-python-page').classList.toggle('hidden', !showQuickPython);
   $('welcome-screen').classList.toggle('hidden', view !== 'welcome');
-  $('statusbar').classList.toggle('hidden', showSettings || showExecution || showTerminal);
+  $('statusbar').classList.toggle('hidden', showSettings || showExecution || showTerminal || showQuickPython);
   if (!showEditor) $('findbar').classList.add('hidden');
 }
 
@@ -258,6 +268,119 @@ function showTerminalPage() {
   setWorkspaceView('terminal');
   hideSidebar();
   requestAnimationFrame(() => terminal.focus());
+}
+
+function appendQuickPythonOutput(text, className = 'term-out') {
+  if (!text) return;
+  const line = document.createElement('pre');
+  line.className = className;
+  line.textContent = text.replace(/(?:>>> |\.\.\. )$/, '');
+  if (line.textContent) $('quick-python-output').append(line);
+  $('quick-python-output').scrollTop = $('quick-python-output').scrollHeight;
+}
+
+function stopQuickPythonPolling() { clearTimeout(state.quickPollTimer); state.quickPollTimer = null; }
+
+async function stopQuickPythonSession() {
+  const sessionId = state.quickSession;
+  if (!sessionId) return false;
+  stopQuickPythonPolling();
+  state.quickSession = null;
+  state.quickSubmitting = false;
+  state.quickInputRow?.remove();
+  try { await apiPost('/api/run/session/stop', { session: sessionId }); } catch { /* leaving the page must remain immediate */ }
+  return true;
+}
+
+function setQuickPythonInputVisible(visible, { focus = false } = {}) {
+  if (!state.quickInputRow) return;
+  if (!visible) { state.quickInputRow.remove(); return; }
+  const output = $('quick-python-output');
+  if (state.quickInputRow.parentElement !== output) output.append(state.quickInputRow);
+  if (focus) requestAnimationFrame(() => state.quickSession && state.quickInput?.focus({ preventScroll: true }));
+}
+
+function finishQuickPythonSession(returncode) {
+  stopQuickPythonPolling();
+  state.quickSession = null;
+  state.quickSubmitting = false;
+  setQuickPythonInputVisible(false);
+  appendQuickPythonOutput(`[exit ${returncode}]`, returncode === 0 ? 'out-rc-ok' : 'out-rc-err');
+}
+
+function handleQuickPythonSession(data) {
+  if (data.error) { appendQuickPythonOutput(data.error, 'term-err'); finishQuickPythonSession(-1); return; }
+  appendQuickPythonOutput(data.output || '');
+  if (data.done) { finishQuickPythonSession(data.returncode); return; }
+  state.quickSession = data.session;
+  setQuickPythonInputVisible(true, { focus: true });
+  scheduleQuickPythonPoll();
+}
+
+function scheduleQuickPythonPoll() {
+  stopQuickPythonPolling();
+  if (!state.quickSession) return;
+  const sessionId = state.quickSession;
+  state.quickPollTimer = setTimeout(async () => {
+    const data = await apiPost('/api/run/session/poll', { session: sessionId });
+    if (state.quickSession !== sessionId) return;
+    if (data.error) { appendQuickPythonOutput(data.error, 'term-err'); finishQuickPythonSession(-1); return; }
+    appendQuickPythonOutput(data.output || '');
+    if (data.done) finishQuickPythonSession(data.returncode);
+    else { setQuickPythonInputVisible(true); scheduleQuickPythonPoll(); }
+  }, 180);
+}
+
+async function sendQuickPythonInput() {
+  if (!state.quickSession || state.quickSubmitting) return;
+  state.quickSubmitting = true;
+  const sessionId = state.quickSession;
+  const value = state.quickInput.value;
+  state.quickInput.value = '';
+  state.quickInputRow.remove();
+  appendQuickPythonOutput(`>>> ${value}`, 'quick-python-echo');
+  stopQuickPythonPolling();
+  const data = await apiPost('/api/run/session/input', { session: sessionId, value });
+  if (state.quickSession !== sessionId) { state.quickSubmitting = false; return; }
+  if (data.error) { appendQuickPythonOutput(data.error, 'term-err'); finishQuickPythonSession(-1); return; }
+  appendQuickPythonOutput(data.output || '');
+  if (data.done) finishQuickPythonSession(data.returncode);
+  else { state.quickSubmitting = false; setQuickPythonInputVisible(true, { focus: true }); scheduleQuickPythonPoll(); }
+}
+
+async function showQuickPythonPage() {
+  setWorkspaceView('quick');
+  hideSidebar();
+  if (state.quickSession) { setQuickPythonInputVisible(true, { focus: true }); return; }
+  $('quick-python-output').replaceChildren();
+  appendQuickPythonOutput(t('startingPython'), 'term-info');
+  handleQuickPythonSession(await apiPost('/api/repl/session/start', {}));
+}
+
+function clearQuickPython() {
+  $('quick-python-output').replaceChildren();
+  if (state.quickSession) setQuickPythonInputVisible(true);
+}
+
+function closeKebabMenu() {
+  $('kebab').classList.remove('kebab--open');
+  $('btn-kebab-toggle').setAttribute('aria-expanded', 'false');
+  document.activeElement?.blur?.();
+}
+
+function toggleKebabMenu() {
+  const open = $('kebab').classList.toggle('kebab--open');
+  $('btn-kebab-toggle').setAttribute('aria-expanded', String(open));
+}
+
+async function disconnectAndCloseSession() {
+  closeKebabMenu();
+  const hadExecution = Boolean(state.runSession);
+  const hadQuickPython = Boolean(state.quickSession);
+  await stopExecutionSession();
+  await stopQuickPythonSession();
+  if (hadExecution || hadQuickPython) setWorkspaceView(state.currentFile ? 'editor' : 'welcome');
+  toast(t('sessionClosed'), hadExecution || hadQuickPython ? 'success' : 'info');
 }
 
 /** @param {{ error?: string, output?: string, session?: string, done?: boolean, returncode?: number }} data */
@@ -532,6 +655,34 @@ function prepareRuntimeInput() {
   state.runtimeInput = input;
 }
 
+function prepareQuickPythonInput() {
+  const row = document.createElement('div');
+  row.className = 'term-inline-input';
+  row.dir = 'ltr';
+  const prompt = document.createElement('span');
+  prompt.className = 'term-prompt';
+  prompt.textContent = '›';
+  const input = document.createElement('input');
+  input.id = 'quick-python-input';
+  input.className = 'terminal-inline-editor';
+  input.placeholder = t('quickPythonPlaceholder');
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.autocapitalize = 'none';
+  input.setAttribute('autocorrect', 'off');
+  input.setAttribute('inputmode', 'text');
+  input.setAttribute('enterkeyhint', 'enter');
+  let isComposing = false;
+  const submit = event => { event?.preventDefault(); if (!isComposing) sendQuickPythonInput(); };
+  input.addEventListener('compositionstart', () => { isComposing = true; });
+  input.addEventListener('compositionend', () => { isComposing = false; });
+  input.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing) submit(event); });
+  input.addEventListener('beforeinput', event => { if (event.inputType === 'insertLineBreak') submit(event); });
+  row.append(prompt, input);
+  state.quickInputRow = row;
+  state.quickInput = input;
+}
+
 function prepareSettingsTabs() {
   const grid = document.querySelector('.settings-grid');
   const libraryCard = $('pkg-list').closest('.settings-card');
@@ -624,6 +775,8 @@ function configureCommandPalette() {
     { label: 'Install package', run: () => showSettings({ focusPackages: true }) },
     { label: 'Toggle auto save', run: () => { settings.autoSave = !settings.autoSave; $('set-auto-save').checked = settings.autoSave; persistSettings(); } },
     { label: 'Open terminal', shortcut: 'Ctrl+`', run: showTerminalPage },
+    { label: 'Quick Python', run: showQuickPythonPage },
+    { label: 'Disconnect Python session', run: disconnectAndCloseSession },
   ]);
 }
 
@@ -641,7 +794,7 @@ function bindDropdown(dropdownId, triggerId, menuId, onSelect) {
 function bindEvents() {
   document.querySelectorAll('[data-modal]').forEach(button => button.addEventListener('click', () => closeModal(button.dataset.modal)));
   document.querySelectorAll('.modal-overlay').forEach(overlay => overlay.addEventListener('click', event => { if (event.target === overlay) overlay.classList.add('hidden'); }));
-  document.addEventListener('click', event => { if (!$('context-menu').contains(event.target)) hideContextMenu(); document.querySelectorAll('.settings-dropdown.open').forEach(dropdown => { if (!dropdown.contains(event.target)) dropdown.classList.remove('open'); }); });
+  document.addEventListener('click', event => { if (!$('context-menu').contains(event.target)) hideContextMenu(); if (!$('kebab').contains(event.target)) closeKebabMenu(); document.querySelectorAll('.settings-dropdown.open').forEach(dropdown => { if (!dropdown.contains(event.target)) dropdown.classList.remove('open'); }); });
 
   $('context-menu').addEventListener('click', async event => {
     const item = event.target.closest('li'); const target = state.contextTarget;
@@ -656,18 +809,19 @@ function bindEvents() {
     if (item.dataset.action === 'delete') openDeleteModal(target);
   });
 
-  $('btn-new').addEventListener('click', openNewFileModal); $('welcome-new').addEventListener('click', openNewFileModal);
+  $('btn-kebab-toggle').addEventListener('click', event => { event.stopPropagation(); toggleKebabMenu(); });
+  $('btn-new').addEventListener('click', () => { closeKebabMenu(); openNewFileModal(); }); $('welcome-new').addEventListener('click', openNewFileModal);
   $('ft-new-file').addEventListener('click', openNewFileModal); $('ft-new-folder').addEventListener('click', openNewFolderModal);
   $('new-file-location').addEventListener('click', () => openLocationPicker('file')); $('new-folder-location').addEventListener('click', () => openLocationPicker('folder'));
   $('btn-new-file-confirm').addEventListener('click', createFile); $('btn-new-folder-confirm').addEventListener('click', createFolder);
   $('new-file-name').addEventListener('keydown', event => { if (event.key === 'Enter') createFile(); }); $('new-folder-name').addEventListener('keydown', event => { if (event.key === 'Enter') createFolder(); });
-  $('btn-save').addEventListener('click', saveFile); $('btn-run').addEventListener('click', runCurrentFile);
-  $('btn-command').addEventListener('click', () => commandPalette.open()); $('btn-sidebar-toggle').addEventListener('click', () => toggleSidebar()); $('btn-sidebar-close').addEventListener('click', hideSidebar); $('sidebar-backdrop').addEventListener('click', hideSidebar);
-  $('btn-settings-open').addEventListener('click', showSettings); $('btn-terminal-open').addEventListener('click', showTerminalPage); $('btn-settings-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome'));
-  $('btn-execution-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome')); $('btn-terminal-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome'));
+  $('btn-save').addEventListener('click', () => { closeKebabMenu(); saveFile(); }); $('btn-run').addEventListener('click', runCurrentFile);
+  $('btn-command').addEventListener('click', () => { closeKebabMenu(); commandPalette.open(); }); $('btn-sidebar-toggle').addEventListener('click', () => toggleSidebar()); $('btn-sidebar-close').addEventListener('click', hideSidebar); $('sidebar-backdrop').addEventListener('click', hideSidebar);
+  $('btn-settings-open').addEventListener('click', () => { closeKebabMenu(); showSettings(); }); $('btn-terminal-open').addEventListener('click', () => { closeKebabMenu(); showTerminalPage(); }); $('btn-quick-python-open').addEventListener('click', () => { closeKebabMenu(); showQuickPythonPage(); }); $('btn-disconnect').addEventListener('click', disconnectAndCloseSession); $('btn-settings-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome'));
+  $('btn-execution-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome')); $('btn-terminal-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome')); $('btn-quick-python-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome'));
   $('welcome-open').addEventListener('click', () => toggleSidebar(true)); $('ft-refresh').addEventListener('click', async () => { await filetree.refresh(); toast(t('refreshed'), 'success'); });
   $('ft-upload').addEventListener('click', () => $('upload-input').click()); $('upload-input').addEventListener('change', uploadFiles);
-  $('btn-execution-clear').addEventListener('click', clearExecution); $('btn-terminal-clear').addEventListener('click', () => terminal.clear());
+  $('btn-execution-clear').addEventListener('click', clearExecution); $('btn-terminal-clear').addEventListener('click', () => terminal.clear()); $('btn-quick-python-clear').addEventListener('click', clearQuickPython);
 
   bindSettings(); bindFind(); bindShortcuts();
   editorTextarea.addEventListener('input', markDirty); editorTextarea.addEventListener('keyup', updateCursor); editorTextarea.addEventListener('click', updateCursor);
@@ -711,12 +865,12 @@ function bindShortcuts() {
     if (control && key === 'p') { event.preventDefault(); commandPalette.open(); }
     if (control && key === 'i' && state.runSession) { event.preventDefault(); setWorkspaceView('execution'); setRuntimeInputVisible(true); }
     if (event.key === 'F5') { event.preventDefault(); runCurrentFile(); }
-    if (event.key === 'Escape') { hideContextMenu(); closeFind(); hideSidebar(); document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.add('hidden')); }
+    if (event.key === 'Escape') { hideContextMenu(); closeKebabMenu(); closeFind(); hideSidebar(); document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.add('hidden')); }
   });
 }
 
 async function init() {
-  prepareRuntimeInput(); prepareSettingsTabs(); applySettings(); bindEvents(); configureCommandPalette();
+  prepareRuntimeInput(); prepareQuickPythonInput(); prepareSettingsTabs(); applySettings(); bindEvents(); configureCommandPalette();
   try { const response = await apiPost('/api/cmd', { cmd: 'python --version' }); $('si-python').removeAttribute('data-i18n'); $('si-python').textContent = (response.stdout || response.stderr || '').trim() || '—'; } catch { $('si-python').textContent = '—'; }
   await loadRoots(); terminal.printInfo('PyIDE Termux Pro · Ready');
 }

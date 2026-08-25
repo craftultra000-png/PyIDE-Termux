@@ -115,3 +115,11 @@ Interactive Python sessions no longer use the former 30-second termination path.
 The browser pass used a Python file that printed `alive` and slept for 60 seconds. On desktop, the session stayed active in Execution and displayed its inline input; leaving through Back to editor, Terminal, or Settings sent the stop request. Pressing Run again sent stop for the existing session before starting its replacement. Clear erased only visible output while polling continued, so it did not terminate the process.
 
 The same flow was verified in a 390 px phone viewport. The compact drawer, editor, and Execution page stayed within the viewport. The live session printed `alive`; Clear preserved it, and Back to editor sent the stop request. JavaScript syntax checks, Python compilation, file-operation tests, Python-session tests, and launcher tests passed afterwards.
+
+## Kebab menu and Quick Python — 25 August 2026
+
+The header wordmark was replaced with a compact Kebab trigger while Run remains immediately beside it. The menu contains Keyboard shortcuts, New file, Save, Terminal, Quick Python, Settings, and a visually separated red Disconnect and close session action. Desktop interaction confirmed that the menu opens normally and keeps all actions visible within its anchored panel.
+
+Quick Python opens a standalone full-page local REPL with an inline `›` prompt. On desktop, `print('quick-ok')` echoed as `>>> print('quick-ok')`, printed `quick-ok`, and preserved a ready command line for the next entry. A direct API verification also started the REPL, executed `print('api-ok')`, received the expected output, and explicitly stopped the session.
+
+The Disconnect action returned the page to the editor or welcome destination and sent `POST /api/run/session/stop`. In a same-origin 390 px phone viewport, the compact toolbar fit Run, Kebab, and Files; the full Kebab menu stayed within the frame, Quick Python occupied the page height without a detached footer, and `print('mobile-ok')` echoed and printed correctly. Leaving the phone page also sent the session-stop request. JavaScript syntax checks, Python compilation, file-operation tests, Python-session tests including the REPL test, and launcher tests passed afterwards.
