@@ -33,3 +33,13 @@ Opening the test file exposed one overlay issue caused by an opaque textarea in 
 Running the test revealed an input composer directly inside the Output panel. Entering `Ada` and submitting it produced `Name: Hello, Ada!` with exit code `0`, confirming the end-to-end interactive input flow without a detached field.
 
 An RTL phone viewport test at 386 px loaded the Termux theme correctly. Its closed drawer was hidden and translated on the positive horizontal axis (right side); open state had `right: 0`, no horizontal translation, and visible interaction. Closing restored the right-side translation and disabled pointer events. The test frame was then removed.
+
+## Terminal-style input and library management — in progress
+
+On desktop, the new settings navigation separates general preferences from a Libraries tab. The Libraries tab loaded 93 installed packages with names and versions, plus a package search field and refresh action. The remaining verification covers the live terminal-style input session and forced-LTR explorer on desktop and phone.
+
+A temporary two-prompt script (`terminal_style_input_test.py`) was created through the test interface to exercise the live session endpoint. The workspace returned from settings and refreshed its file tree in preparation for the execution test.
+
+The desktop session test opened that file and displayed `First:` within Output, followed by a single terminal-style input line. Entering `alpha` moved execution to `Second:`; entering `beta` produced `Result: alpha|beta` and `[exit 0]`. This confirms prompts, ordinary line input, sequential program execution and final output work without a detached multi-value form.
+
+The 386 px RTL phone test found and then corrected an older RTL selector that still forced the closed explorer toward the right. The final computed state reports `direction: ltr`, `left: 0px`, and a negative X translation while closed; opening returns the translation to zero. This verifies the explorer stays LTR and enters from the left, regardless of interface locale.

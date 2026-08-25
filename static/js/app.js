@@ -30,6 +30,10 @@ const state = {
   findCursor: 0,
   panelCollapsed: false,
   autoSaveTimer: null,
+  runSession: null,
+  runPollTimer: null,
+  packages: [],
+  settingsTab: 'general',
 };
 
 const savedPreferences = JSON.parse(localStorage.getItem('pyide.settings') || '{}');
@@ -173,42 +177,78 @@ async function saveFile({ silent = false } = {}) {
   return true;
 }
 
-function codeNeedsInput() { return /\binput\s*\(/.test(editor.getValue()); }
-
 async function runCurrentFile() {
   if (!state.currentFile) return toast(t('openFileFirst'), 'error');
   switchPanel('output');
-  const stdin = $('stdin-input').value;
-  if (codeNeedsInput() && !stdin.trim()) {
-    $('stdin-row').classList.remove('hidden');
-    $('output-content').innerHTML = `<div class="out-info">${t('inputNeeded')}</div>`;
-    toast(t('inputNeeded'), 'info');
-    $('stdin-input').focus();
-    return;
-  }
   await saveFile({ silent: true });
-  $('stdin-row').classList.add('hidden');
+  stopRunPolling();
+  state.runSession = null;
+  setRuntimeInputVisible(false);
   $('output-content').innerHTML = `<div class="out-info">${t('run')}…</div>`;
-  renderOutput(await apiPost('/api/run', { path: state.currentFile, stdin }));
+  handleRunSession(await apiPost('/api/run/session/start', { path: state.currentFile }));
 }
 
-/** @param {{ error?: string, stdout?: string, stderr?: string, returncode?: number }} data */
-function renderOutput(data) {
-  const output = $('output-content');
-  output.replaceChildren();
-  output.className = 'output-content';
-  if (data.error) { output.classList.add('out-stderr'); output.textContent = data.error; return; }
-  for (const [key, className] of [['stdout', 'out-stdout'], ['stderr', 'out-stderr']]) {
-    if (!data[key]) continue;
-    const pre = document.createElement('pre');
-    pre.className = className;
-    pre.textContent = data[key];
-    output.append(pre);
-  }
+function appendRunOutput(text, className = 'out-stdout') {
+  if (!text) return;
+  const line = document.createElement('pre');
+  line.className = className;
+  line.textContent = text;
+  $('output-content').append(line);
+  $('output-content').scrollTop = $('output-content').scrollHeight;
+}
+
+function stopRunPolling() { clearTimeout(state.runPollTimer); state.runPollTimer = null; }
+
+function setRuntimeInputVisible(visible) {
+  $('stdin-row').classList.toggle('hidden', !visible);
+  if (visible) setTimeout(() => $('runtime-input')?.focus(), 30);
+}
+
+function finishRunSession(returncode) {
+  stopRunPolling();
+  state.runSession = null;
+  setRuntimeInputVisible(false);
   const result = document.createElement('div');
-  result.className = data.returncode === 0 ? 'out-rc-ok' : 'out-rc-err';
-  result.textContent = `[exit ${data.returncode}]`;
-  output.append(result);
+  result.className = returncode === 0 ? 'out-rc-ok' : 'out-rc-err';
+  result.textContent = `[exit ${returncode}]`;
+  $('output-content').append(result);
+}
+
+/** @param {{ error?: string, output?: string, session?: string, done?: boolean, returncode?: number }} data */
+function handleRunSession(data) {
+  if (data.error) { appendRunOutput(data.error, 'out-stderr'); finishRunSession(-1); return; }
+  $('output-content').replaceChildren();
+  appendRunOutput(data.output || '');
+  if (data.done) { finishRunSession(data.returncode); return; }
+  state.runSession = data.session;
+  setRuntimeInputVisible(true);
+  scheduleRunPoll();
+}
+
+function scheduleRunPoll() {
+  stopRunPolling();
+  if (!state.runSession) return;
+  state.runPollTimer = setTimeout(async () => {
+    const data = await apiPost('/api/run/session/poll', { session: state.runSession });
+    if (data.error) { appendRunOutput(data.error, 'out-stderr'); finishRunSession(-1); return; }
+    appendRunOutput(data.output || '');
+    if (data.done) finishRunSession(data.returncode);
+    else scheduleRunPoll();
+  }, 180);
+}
+
+async function sendRuntimeInput() {
+  const input = $('runtime-input');
+  if (!state.runSession) return;
+  const value = input.value;
+  input.value = '';
+  appendRunOutput(`${value}\n`, 'out-stdin');
+  stopRunPolling();
+  const data = await apiPost('/api/run/session/input', { session: state.runSession, value });
+  if (data.error) { appendRunOutput(data.error, 'out-stderr'); finishRunSession(-1); return; }
+  appendRunOutput(data.output || '');
+  if (data.done) finishRunSession(data.returncode);
+  else { setRuntimeInputVisible(true); scheduleRunPoll(); }
 }
 
 /** @param {MouseEvent} event @param {any} entry */
@@ -334,6 +374,7 @@ function resetOpenFile() {
 function showSettings({ focusPackages = false } = {}) {
   setWorkspaceView('settings');
   hideSidebar();
+  activateSettingsTab(focusPackages ? 'libraries' : state.settingsTab);
   loadPackageList();
   if (focusPackages) requestAnimationFrame(() => $('pkg-name').focus());
 }
@@ -398,12 +439,71 @@ async function loadPackageList() {
   list.innerHTML = `<div class="pkg-loading">${t('loading')}</div>`;
   const data = await api('/api/packages');
   if (data.error || !data.packages) { list.textContent = data.error || t('loadingError'); return; }
-  list.replaceChildren(...data.packages.map(pkg => {
+  state.packages = data.packages;
+  renderPackageList();
+}
+
+function renderPackageList() {
+  const list = $('pkg-list');
+  const query = ($('package-filter')?.value || '').trim().toLowerCase();
+  const packages = state.packages.filter(pkg => pkg.name.toLowerCase().includes(query));
+  $('settings-package-count').textContent = state.packages.length ? `(${state.packages.length})` : '';
+  if (!packages.length) { list.innerHTML = `<div class="pkg-loading">${query ? 'No matching packages' : '—'}</div>`; return; }
+  list.replaceChildren(...packages.map(pkg => {
     const row = document.createElement('div');
     row.className = 'pkg-item';
     row.innerHTML = `<span>${pkg.name}</span><span class="pkg-version">${pkg.version}</span>`;
     return row;
   }));
+}
+
+function prepareRuntimeInput() {
+  const row = $('stdin-row');
+  row.className = 'runtime-input-row hidden';
+  row.dir = 'ltr';
+  row.replaceChildren();
+  const prompt = document.createElement('span');
+  prompt.className = 'runtime-prompt';
+  prompt.textContent = '›';
+  const input = document.createElement('input');
+  input.id = 'runtime-input';
+  input.className = 'runtime-input';
+  input.placeholder = 'Type input and press Enter';
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); sendRuntimeInput(); } });
+  const send = document.createElement('button');
+  send.id = 'btn-runtime-send';
+  send.className = 'runtime-send';
+  send.type = 'button';
+  send.textContent = 'Enter';
+  send.addEventListener('click', sendRuntimeInput);
+  row.append(prompt, input, send);
+}
+
+function prepareSettingsTabs() {
+  const grid = document.querySelector('.settings-grid');
+  const libraryCard = $('pkg-list').closest('.settings-card');
+  const tabs = document.createElement('nav');
+  tabs.className = 'settings-tabs';
+  tabs.innerHTML = '<button class="settings-tab active" data-settings-tab="general" type="button">الإعدادات العامة</button><button class="settings-tab" data-settings-tab="libraries" type="button">المكتبات <span id="settings-package-count"></span></button>';
+  grid.before(tabs);
+  const tools = document.createElement('div');
+  tools.className = 'library-tools';
+  tools.innerHTML = '<input id="package-filter" class="pkg-input" placeholder="ابحث في المكتبات المثبتة" type="search"/><button class="btn-secondary" id="btn-pkg-refresh" type="button">تحديث القائمة</button>';
+  libraryCard.querySelector('.pkg-list-header').before(tools);
+  tabs.addEventListener('click', event => { const tab = event.target.closest('.settings-tab'); if (tab) activateSettingsTab(tab.dataset.settingsTab); });
+  $('package-filter').addEventListener('input', renderPackageList);
+  $('btn-pkg-refresh').addEventListener('click', loadPackageList);
+}
+
+function activateSettingsTab(tab) {
+  state.settingsTab = tab === 'libraries' ? 'libraries' : 'general';
+  const libraryCard = $('pkg-list').closest('.settings-card');
+  document.querySelectorAll('.settings-grid > .settings-card').forEach(card => { card.hidden = state.settingsTab === 'libraries' ? card !== libraryCard : card === libraryCard; });
+  document.querySelector('.settings-grid').classList.toggle('libraries-active', state.settingsTab === 'libraries');
+  document.querySelectorAll('.settings-tab').forEach(button => button.classList.toggle('active', button.dataset.settingsTab === state.settingsTab));
+  if (state.settingsTab === 'libraries') loadPackageList();
 }
 
 async function installPackage() {
@@ -510,15 +610,14 @@ function bindEvents() {
   $('new-file-location').addEventListener('click', () => openLocationPicker('file')); $('new-folder-location').addEventListener('click', () => openLocationPicker('folder'));
   $('btn-new-file-confirm').addEventListener('click', createFile); $('btn-new-folder-confirm').addEventListener('click', createFolder);
   $('new-file-name').addEventListener('keydown', event => { if (event.key === 'Enter') createFile(); }); $('new-folder-name').addEventListener('keydown', event => { if (event.key === 'Enter') createFolder(); });
-  $('btn-save').addEventListener('click', saveFile); $('btn-run').addEventListener('click', runCurrentFile); $('btn-run-with-stdin').addEventListener('click', runCurrentFile);
+  $('btn-save').addEventListener('click', saveFile); $('btn-run').addEventListener('click', runCurrentFile);
   $('btn-command').addEventListener('click', () => commandPalette.open()); $('btn-sidebar-toggle').addEventListener('click', () => toggleSidebar()); $('btn-sidebar-close').addEventListener('click', hideSidebar); $('sidebar-backdrop').addEventListener('click', hideSidebar);
   $('btn-settings-open').addEventListener('click', showSettings); $('btn-install-open').addEventListener('click', () => showSettings({ focusPackages: true })); $('btn-settings-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome'));
   $('welcome-open').addEventListener('click', () => toggleSidebar(true)); $('ft-refresh').addEventListener('click', async () => { await filetree.refresh(); toast(t('refreshed'), 'success'); });
   $('ft-upload').addEventListener('click', () => $('upload-input').click()); $('upload-input').addEventListener('change', uploadFiles);
   document.querySelectorAll('.ptab').forEach(tab => tab.addEventListener('click', () => switchPanel(tab.dataset.ptab)));
   $('btn-panel-toggle').addEventListener('click', () => state.panelCollapsed ? expandPanel() : collapsePanel());
-  $('btn-panel-clear').addEventListener('click', () => { terminal.clear(); $('output-content').innerHTML = `<div class="output-empty"><span>${t('runHint')}</span></div>`; $('stdin-row').classList.add('hidden'); });
-  $('stdin-input').addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); runCurrentFile(); } });
+  $('btn-panel-clear').addEventListener('click', () => { terminal.clear(); stopRunPolling(); state.runSession = null; $('output-content').innerHTML = `<div class="output-empty"><span>${t('runHint')}</span></div>`; setRuntimeInputVisible(false); });
 
   bindSettings(); bindFind(); bindShortcuts(); bindPanelResize();
   editorTextarea.addEventListener('input', markDirty); editorTextarea.addEventListener('keyup', updateCursor); editorTextarea.addEventListener('click', updateCursor);
@@ -560,7 +659,7 @@ function bindShortcuts() {
     if (control && key === 'f') { event.preventDefault(); openFind(); }
     if (control && key === 'h') { event.preventDefault(); openFind(true); }
     if (control && key === 'p') { event.preventDefault(); commandPalette.open(); }
-    if (control && key === 'i') { event.preventDefault(); switchPanel('output'); $('stdin-row').classList.toggle('hidden'); }
+    if (control && key === 'i') { event.preventDefault(); switchPanel('output'); if (state.runSession) setRuntimeInputVisible(true); }
     if (event.key === 'F5') { event.preventDefault(); runCurrentFile(); }
     if (event.key === 'Escape') { hideContextMenu(); closeFind(); hideSidebar(); document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.add('hidden')); }
   });
@@ -574,7 +673,7 @@ function bindPanelResize() {
 }
 
 async function init() {
-  applySettings(); bindEvents(); configureCommandPalette();
+  prepareRuntimeInput(); prepareSettingsTabs(); applySettings(); bindEvents(); configureCommandPalette();
   try { const response = await apiPost('/api/cmd', { cmd: 'python --version' }); $('si-python').removeAttribute('data-i18n'); $('si-python').textContent = (response.stdout || response.stderr || '').trim() || '—'; } catch { $('si-python').textContent = '—'; }
   await loadRoots(); terminal.printInfo('PyIDE Termux Pro · Ready');
 }
