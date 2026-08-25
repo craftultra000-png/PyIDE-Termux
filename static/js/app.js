@@ -31,6 +31,7 @@ const state = {
   autoSaveTimer: null,
   runSession: null,
   runPollTimer: null,
+  runtimeSubmitting: false,
   packages: [],
   settingsTab: 'general',
 };
@@ -189,6 +190,7 @@ async function runCurrentFile() {
   await saveFile({ silent: true });
   stopRunPolling();
   state.runSession = null;
+  state.runtimeSubmitting = false;
   setRuntimeInputVisible(false);
   $('output-content').innerHTML = `<div class="out-info">${t('run')}…</div>`;
   handleRunSession(await apiPost('/api/run/session/start', { path: state.currentFile }));
@@ -210,14 +212,23 @@ function setRuntimeInputVisible(visible) {
   if (!state.runtimeInputRow) return;
   if (!visible) state.runtimeInputRow.remove();
   else {
-    $('output-content').append(state.runtimeInputRow);
-    setTimeout(() => state.runtimeInput?.focus(), 30);
+    const output = $('output-content');
+    const lastLine = [...output.querySelectorAll('pre')].at(-1);
+    const joinsPrompt = lastLine && !lastLine.textContent.endsWith('\n');
+    lastLine?.classList.toggle('console-prompt-fragment', Boolean(joinsPrompt));
+    state.runtimeInputRow.classList.toggle('runtime-input-row--inline', Boolean(joinsPrompt));
+    output.append(state.runtimeInputRow);
+    setTimeout(() => {
+      state.runtimeInput?.focus({ preventScroll: true });
+      state.runtimeInputRow?.scrollIntoView({ block: 'nearest' });
+    }, 30);
   }
 }
 
 function finishRunSession(returncode) {
   stopRunPolling();
   state.runSession = null;
+  state.runtimeSubmitting = false;
   setRuntimeInputVisible(false);
   const result = document.createElement('div');
   result.className = returncode === 0 ? 'out-rc-ok' : 'out-rc-err';
@@ -228,6 +239,7 @@ function finishRunSession(returncode) {
 function clearExecution() {
   stopRunPolling();
   state.runSession = null;
+  state.runtimeSubmitting = false;
   setRuntimeInputVisible(false);
   $('output-content').innerHTML = `<div class="output-empty"><span>${t('runHint')}</span></div>`;
 }
@@ -265,18 +277,23 @@ function scheduleRunPoll() {
 
 async function sendRuntimeInput() {
   const input = state.runtimeInput;
-  if (!state.runSession) return;
+  if (!state.runSession || state.runtimeSubmitting) return;
+  state.runtimeSubmitting = true;
   const sessionId = state.runSession;
   const value = input.value;
   input.value = '';
-  appendRunOutput(`${value}\n`, 'out-stdin');
+  state.runtimeInputRow.remove();
+  const echo = document.createElement('span');
+  echo.className = 'out-stdin runtime-echo';
+  echo.textContent = value;
+  $('output-content').append(echo, document.createElement('br'));
   stopRunPolling();
   const data = await apiPost('/api/run/session/input', { session: sessionId, value });
-  if (state.runSession !== sessionId) return;
+  if (state.runSession !== sessionId) { state.runtimeSubmitting = false; return; }
   if (data.error) { appendRunOutput(data.error, 'out-stderr'); finishRunSession(-1); return; }
   appendRunOutput(data.output || '');
   if (data.done) finishRunSession(data.returncode);
-  else { setRuntimeInputVisible(true); scheduleRunPoll(); }
+  else { state.runtimeSubmitting = false; setRuntimeInputVisible(true); scheduleRunPoll(); }
 }
 
 /** @param {MouseEvent} event @param {any} entry */
@@ -489,7 +506,17 @@ function prepareRuntimeInput() {
   input.setAttribute('aria-label', t('runtimePlaceholder'));
   input.autocomplete = 'off';
   input.spellcheck = false;
-  input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); sendRuntimeInput(); } });
+  input.autocapitalize = 'none';
+  input.setAttribute('autocorrect', 'off');
+  input.setAttribute('inputmode', 'text');
+  input.setAttribute('enterkeyhint', 'enter');
+  let isComposing = false;
+  const submit = event => { event?.preventDefault(); if (!isComposing) sendRuntimeInput(); };
+  input.addEventListener('compositionstart', () => { isComposing = true; });
+  input.addEventListener('compositionend', () => { isComposing = false; });
+  input.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing) submit(event); });
+  input.addEventListener('beforeinput', event => { if (event.inputType === 'insertLineBreak') submit(event); });
+  input.addEventListener('focus', () => requestAnimationFrame(() => row.scrollIntoView({ block: 'nearest' })));
   row.append(prompt, input);
   state.runtimeInputRow = row;
   state.runtimeInput = input;

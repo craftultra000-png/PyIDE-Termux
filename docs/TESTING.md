@@ -63,3 +63,11 @@ The completed desktop execution pass entered `alpha` and `beta` in sequence and 
 In a same-origin 386 px phone viewport, Terminal measured a 356 px wide output area with its inline input nested inside that area, no horizontal overflow, and no legacy terminal footer. `printf 'mobile-inline'` executed successfully and returned a new inline prompt. The execution page measured a 332 px wide output area, displayed its `›` input within that stream, accepted `alpha` and `beta`, returned `Result: alpha|beta` with `[exit 0]`, and retained neither a runtime input nor the former `stdin-row` footer. English-only visible-interface inspection found no Arabic application labels; the sole Arabic string was the deliberately retained language-choice name, `العربية`.
 
 The full automated regression suite also passed: JavaScript unit checks, Python compilation, file-operation tests, and sequential Python session tests. Closing process streams when a session completes removed the previous resource warnings.
+
+## Android input and full-height console verification — 25 August 2026
+
+Both live inputs now declare `autocapitalize="none"`, `autocorrect="off"`, `autocomplete="off"`, `spellcheck="false"`, `inputmode="text"`, and `enterkeyhint="enter"`. These mobile keyboard hints prevent sentence capitalization and correction from being requested by the web page. The handlers accept both the normal Enter key event and Android’s line-break input event, while ignoring text-composition confirmation so an IME cannot submit a partially composed value.
+
+The phone verification used a same-origin 386 px viewport. Terminal now uses the entire workspace width and a 607 px transcript area; the execution page similarly uses a 589 px transcript area. Neither page has horizontal overflow or a detached input footer. The terminal accepted `printf 'phone-lowercase'` and kept a new `$` input prompt within its stream. The two-stage Python test accepted `alpha` and `beta` in sequence and returned `accepted: alpha|beta` with `[exit 0]`.
+
+The desktop pass accepted `desktop` and `verified` through the same live Python flow and returned `accepted: desktop|verified` with `[exit 0]`; no runtime input was left after process completion. JavaScript syntax checks, Python compilation, file-operation tests, and interactive-session tests passed after this change.

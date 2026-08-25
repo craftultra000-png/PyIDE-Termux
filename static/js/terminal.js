@@ -13,6 +13,7 @@ export class Terminal {
     this.history = [];
     this.histIdx = -1;
     this._pendingLine = '';
+    this.executing = false;
 
     this._appendInput();
   }
@@ -70,14 +71,26 @@ export class Terminal {
     input.setAttribute('aria-label', 'Type a command and press Enter');
     input.autocomplete = 'off';
     input.spellcheck = false;
-    input.addEventListener('keydown', async (e) => {
+    input.autocapitalize = 'none';
+    input.setAttribute('autocorrect', 'off');
+    input.setAttribute('inputmode', 'text');
+    input.setAttribute('enterkeyhint', 'enter');
+    let isComposing = false;
+    const submit = event => {
+      event?.preventDefault();
+      if (isComposing || this.executing) return;
+      const cmd = input.value.trim();
+      if (!cmd) return;
+      this.history.unshift(cmd);
+      if (this.history.length > 200) this.history.pop();
+      this.histIdx = -1;
+      this._execute(cmd);
+    };
+    input.addEventListener('compositionstart', () => { isComposing = true; });
+    input.addEventListener('compositionend', () => { isComposing = false; });
+    input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        const cmd = input.value.trim();
-        if (!cmd) return;
-        this.history.unshift(cmd);
-        if (this.history.length > 200) this.history.pop();
-        this.histIdx = -1;
-        await this._execute(cmd);
+        if (!e.isComposing) submit(e);
       }
 
       if (e.key === 'ArrowUp') {
@@ -98,6 +111,8 @@ export class Terminal {
         }
       }
     });
+    input.addEventListener('beforeinput', e => { if (e.inputType === 'insertLineBreak') submit(e); });
+    input.addEventListener('focus', () => requestAnimationFrame(() => row.scrollIntoView({ block: 'nearest' })));
     row.append(prompt, input);
     this.out.append(row);
     this.input = input;
@@ -110,35 +125,29 @@ export class Terminal {
   }
 
   async _execute(cmd) {
+    if (this.executing) return;
+    this.executing = true;
     this._removeInput();
     this.printCmd(cmd);
-
-    // Client-side `clear`
-    if (cmd === 'clear' || cmd === 'cls') {
-      this.clear();
-      return;
-    }
-
-    // Client-side `cd`
-    if (cmd.startsWith('cd ')) {
-      const dir = cmd.slice(3).trim();
-      // Try to update cwd via a ls call to validate
-      const resp = await fetch(`/api/files?path=${encodeURIComponent(
-        dir.startsWith('/') ? dir : (this.cwd || '~') + '/' + dir
-      )}`);
-      const data = await resp.json();
-      if (data.error) {
-        this.printErr(`cd: ${data.error}`);
-      } else {
-        this.cwd = data.path;
-        this.printInfo(`→ ${this.cwd}`);
-      }
-      this._scrollBottom();
-      this._appendInput();
-      return;
-    }
-
     try {
+      // Client-side `clear`
+      if (cmd === 'clear' || cmd === 'cls') {
+        this.clear();
+        return;
+      }
+
+      // Client-side `cd`
+      if (cmd.startsWith('cd ')) {
+        const dir = cmd.slice(3).trim();
+        const resp = await fetch(`/api/files?path=${encodeURIComponent(
+          dir.startsWith('/') ? dir : (this.cwd || '~') + '/' + dir
+        )}`);
+        const data = await resp.json();
+        if (data.error) this.printErr(`cd: ${data.error}`);
+        else { this.cwd = data.path; this.printInfo(`→ ${this.cwd}`); }
+        return;
+      }
+
       const body = { cmd, cwd: this.cwd || undefined };
       const resp = await fetch('/api/cmd', {
         method: 'POST',
@@ -154,9 +163,11 @@ export class Terminal {
       }
     } catch (err) {
       this.printErr(String(err));
+    } finally {
+      if (!this.input) this._appendInput();
+      this.executing = false;
+      this._scrollBottom();
     }
-    this._appendInput();
-    this._scrollBottom();
   }
 
   // ── Rendering ────────────────────────────────────────────────
