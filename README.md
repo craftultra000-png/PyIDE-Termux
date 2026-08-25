@@ -60,6 +60,8 @@ pyide
 
 `pyide` starts the local server only if it is not already running, then opens `http://127.0.0.1:8080` in your Android browser. Use `pyide --status` to check it and `pyide --stop` to stop the launcher-owned server.
 
+The installer records the actual Git-clone folder automatically, so the command works whether you cloned the project as `~/PyIDE-Termux`, `~/pyide-termux`, or another directory name.
+
 `termux-setup-storage` is optional, but it enables Android shared storage. The app remains usable with Termux Home when that permission has not been granted.
 
 ### Update from Git

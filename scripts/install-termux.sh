@@ -21,7 +21,8 @@ printf 'Installing PyIDE dependencies…\n'
 pkg install -y python git curl
 
 mkdir -p "$(dirname "$TARGET")"
-cp "$LAUNCHER" "$TARGET"
+printf '#!/data/data/com.termux/files/usr/bin/bash\n' >"$TARGET"
+printf 'PYIDE_HOME=%q exec bash %q "$@"\n' "$APP_DIR" "$LAUNCHER" >>"$TARGET"
 chmod 755 "$TARGET"
 
 printf '\nInstalled successfully. Start PyIDE with:\n\n  pyide\n\n'

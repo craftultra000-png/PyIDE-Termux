@@ -7,6 +7,7 @@
 - [x] Provide a safe install or update command for phone-only Termux users.
 - [x] Test launcher start, browser opening, and server-reuse behavior.
 - [x] Document the chosen installation path and publish it.
+- [x] Bind the installed `pyide` command to the exact Git-clone directory used during installation.
 
 ## Native input touch handling
 
