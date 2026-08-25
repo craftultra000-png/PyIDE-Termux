@@ -71,3 +71,9 @@ Both live inputs now declare `autocapitalize="none"`, `autocorrect="off"`, `auto
 The phone verification used a same-origin 386 px viewport. Terminal now uses the entire workspace width and a 607 px transcript area; the execution page similarly uses a 589 px transcript area. Neither page has horizontal overflow or a detached input footer. The terminal accepted `printf 'phone-lowercase'` and kept a new `$` input prompt within its stream. The two-stage Python test accepted `alpha` and `beta` in sequence and returned `accepted: alpha|beta` with `[exit 0]`.
 
 The desktop pass accepted `desktop` and `verified` through the same live Python flow and returned `accepted: desktop|verified` with `[exit 0]`; no runtime input was left after process completion. JavaScript syntax checks, Python compilation, file-operation tests, and interactive-session tests passed after this change.
+
+## Python focus recovery and toolbar clarity — 25 August 2026
+
+The command-palette control no longer reuses the terminal glyph. It now shows a distinct `⌘` mark and is labelled `Keyboard shortcuts`, while the adjacent `>_` control remains the dedicated Terminal action.
+
+The execution session was tested with output emitted before `input()`: `program started`, followed by `enter your name =`. In both the desktop page and a 386 px phone viewport, the runtime input was connected inside the transcript and was the active document element after the prompt appeared. A simulated transcript tap also restored focus to the input. Sending `phone-focus-ok` returned `hello phone-focus-ok` with `[exit 0]`. The complete JavaScript and Python regression suite passed afterwards.

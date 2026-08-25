@@ -213,10 +213,8 @@ function setRuntimeInputVisible(visible) {
   if (!visible) state.runtimeInputRow.remove();
   else {
     const output = $('output-content');
-    const lastLine = [...output.querySelectorAll('pre')].at(-1);
-    const joinsPrompt = lastLine && !lastLine.textContent.endsWith('\n');
-    lastLine?.classList.toggle('console-prompt-fragment', Boolean(joinsPrompt));
-    state.runtimeInputRow.classList.toggle('runtime-input-row--inline', Boolean(joinsPrompt));
+    output.querySelectorAll('.console-prompt-fragment').forEach(line => line.classList.remove('console-prompt-fragment'));
+    state.runtimeInputRow.classList.remove('runtime-input-row--inline');
     output.append(state.runtimeInputRow);
     setTimeout(() => {
       state.runtimeInput?.focus({ preventScroll: true });
@@ -271,7 +269,7 @@ function scheduleRunPoll() {
     if (data.error) { appendRunOutput(data.error, 'out-stderr'); finishRunSession(-1); return; }
     appendRunOutput(data.output || '');
     if (data.done) finishRunSession(data.returncode);
-    else scheduleRunPoll();
+    else { setRuntimeInputVisible(true); scheduleRunPoll(); }
   }, 180);
 }
 
@@ -658,6 +656,10 @@ function bindEvents() {
   $('welcome-open').addEventListener('click', () => toggleSidebar(true)); $('ft-refresh').addEventListener('click', async () => { await filetree.refresh(); toast(t('refreshed'), 'success'); });
   $('ft-upload').addEventListener('click', () => $('upload-input').click()); $('upload-input').addEventListener('change', uploadFiles);
   $('btn-execution-clear').addEventListener('click', clearExecution); $('btn-terminal-clear').addEventListener('click', () => terminal.clear());
+  $('output-content').addEventListener('pointerdown', event => {
+    if (!state.runSession || !state.runtimeInputRow?.isConnected || event.target === state.runtimeInput) return;
+    state.runtimeInput.focus({ preventScroll: true });
+  });
 
   bindSettings(); bindFind(); bindShortcuts();
   editorTextarea.addEventListener('input', markDirty); editorTextarea.addEventListener('keyup', updateCursor); editorTextarea.addEventListener('click', updateCursor);
