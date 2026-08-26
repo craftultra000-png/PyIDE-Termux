@@ -15,6 +15,13 @@
 - [x] Restore native Quick Python input focus when the user taps its prompt after dismissing the phone keyboard.
 - [x] Verify the toolbar, font size, and keyboard recovery on desktop and phone, then publish.
 
+## Console typography and keyboard focus follow-up
+
+- [x] Remove the remaining mismatch between typed text and executed transcript text in Terminal and Quick Python.
+- [x] Prevent the mobile keyboard from immediately closing after a blank-area tap in Terminal and Quick Python.
+- [x] Move the Files hamburger button to the opposite end of the phone toolbar.
+- [x] Verify keyboard recovery, console typography, and the hamburger position on desktop and phone, then publish.
+
 ## Long-running execution diagnosis
 
 - [x] Trace how Python-session return codes and termination signals are produced.

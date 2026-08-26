@@ -678,16 +678,17 @@ function prepareQuickPythonInput() {
   input.addEventListener('compositionend', () => { isComposing = false; });
   input.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing) submit(event); });
   input.addEventListener('beforeinput', event => { if (event.inputType === 'insertLineBreak') submit(event); });
-  const restorePromptFocus = event => {
+  const restorePromptFocus = () => {
     if (!state.quickSession || state.quickSubmitting || !state.quickInputRow?.isConnected) return;
-    if (event.target !== input) event.preventDefault();
     requestAnimationFrame(() => {
       if (state.quickSession && !state.quickSubmitting && state.quickInputRow?.isConnected) input.focus({ preventScroll: true });
     });
   };
-  row.addEventListener('pointerdown', restorePromptFocus);
-  $('quick-python-output').addEventListener('pointerdown', event => {
-    if (event.target === $('quick-python-output')) restorePromptFocus(event);
+  row.addEventListener('click', event => {
+    if (event.target !== input) restorePromptFocus();
+  });
+  $('quick-python-output').addEventListener('click', event => {
+    if (event.target === $('quick-python-output')) restorePromptFocus();
   });
   row.append(prompt, input);
   state.quickInputRow = row;

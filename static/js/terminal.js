@@ -16,6 +16,10 @@ export class Terminal {
     this.executing = false;
 
     this._appendInput();
+    this.out.addEventListener('click', event => {
+      if (event.target !== this.out || this.executing) return;
+      requestAnimationFrame(() => this.focus());
+    });
   }
 
   // ── Public ──────────────────────────────────────────────────
@@ -113,6 +117,9 @@ export class Terminal {
     });
     input.addEventListener('beforeinput', e => { if (e.inputType === 'insertLineBreak') submit(e); });
     input.addEventListener('focus', () => requestAnimationFrame(() => row.scrollIntoView({ block: 'nearest' })));
+    row.addEventListener('click', event => {
+      if (event.target !== input && !this.executing) requestAnimationFrame(() => input.focus({ preventScroll: true }));
+    });
     row.append(prompt, input);
     this.out.append(row);
     this.input = input;
