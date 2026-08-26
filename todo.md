@@ -34,6 +34,12 @@
 - [x] Align its spacing, typography, icons, and dividers with the compact Acode-style reference.
 - [x] Verify the menu on desktop and phone, run regressions, and publish the verified update.
 
+## Execution input focus recovery
+
+- [x] Restore reliable Android keyboard input when a running Python file reaches `input()` in Execution.
+- [x] Prevent focus recovery from causing an open/close loop or stealing normal user focus.
+- [x] Verify Python input on desktop and phone, run regressions, and publish the verified fix.
+
 ## Long-running execution diagnosis
 
 - [x] Trace how Python-session return codes and termination signals are produced.

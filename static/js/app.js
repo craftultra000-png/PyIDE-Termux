@@ -207,7 +207,10 @@ async function runCurrentFile() {
 
 function appendRunOutput(text, className = 'out-stdout') {
   if (!text) return;
-  state.runtimeInputRow?.remove();
+  if (state.runtimeInputRow?.isConnected) {
+    state.runtimeInputRow.remove();
+    state.runtimeFocusRequested = false;
+  }
   const line = document.createElement('pre');
   line.className = className;
   line.textContent = text;
@@ -363,9 +366,14 @@ function clearQuickPython() {
 }
 
 function closeKebabMenu() {
-  $('kebab').classList.remove('kebab--open');
+  const kebab = $('kebab');
+  const wasOpen = kebab.classList.contains('kebab--open');
+  kebab.classList.remove('kebab--open');
   $('btn-kebab-toggle').setAttribute('aria-expanded', 'false');
-  document.activeElement?.blur?.();
+  // The document click listener calls this for every outside click. Only blur
+  // when a real open menu is being dismissed; otherwise it immediately steals
+  // the focus restored by Execution/Terminal prompt rows on Android.
+  if (wasOpen) document.activeElement?.blur?.();
 }
 
 function toggleKebabMenu() {
@@ -650,6 +658,21 @@ function prepareRuntimeInput() {
   input.addEventListener('compositionend', () => { isComposing = false; });
   input.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing) submit(event); });
   input.addEventListener('beforeinput', event => { if (event.inputType === 'insertLineBreak') submit(event); });
+  const restoreRuntimeFocus = () => {
+    if (!state.runSession || state.runtimeSubmitting || !state.runtimeInputRow?.isConnected) return;
+    // Run after the document click handler. This is click-driven recovery only,
+    // not a poll-loop, so Android receives one stable focus request per tap.
+    requestAnimationFrame(() => {
+      if (!state.runSession || state.runtimeSubmitting || !state.runtimeInputRow?.isConnected) return;
+      input.focus({ preventScroll: true });
+    });
+  };
+  row.addEventListener('click', event => {
+    if (event.target !== input) restoreRuntimeFocus();
+  });
+  $('output-content').addEventListener('click', event => {
+    if (event.target === $('output-content')) restoreRuntimeFocus();
+  });
   row.append(prompt, input);
   state.runtimeInputRow = row;
   state.runtimeInput = input;

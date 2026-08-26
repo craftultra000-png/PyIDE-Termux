@@ -143,3 +143,11 @@ The slider handler had still been applying an inline `font-size` only to `#termi
 ## Compact Acode-inspired Kebab menu — 26 August 2026
 
 The Kebab menu was restyled into a denser command panel: a 248 px maximum width, 38–40 px rows, 13 px labels, 16–17 px icons, compact padding, and restrained dividers. The menu retains Keyboard shortcuts, New file, Save, Terminal, Quick Python, Settings, and the separated disconnect command. In the Arabic 390 px phone frame it measured `248x301` CSS pixels and kept every command visible in one panel. The desktop pass confirmed the same commands and compact visual hierarchy. JavaScript syntax checks, Python compilation, file-operation tests, Python-session tests, and launcher tests passed afterwards.
+
+## Execution input focus recovery — 26 August 2026
+
+The remaining Android keyboard dismissal was traced to the document-level Kebab-menu closer. It ran on every outside click and unconditionally blurred the active element, including the runtime input that the Execution transcript had just focused. The menu closer now blurs only when an open menu is actually dismissed. Execution’s tap-based focus recovery is also scheduled in the next animation frame, after document-level click handling completes; it is triggered by a user tap only and is never called from the 180 ms poll loop.
+
+On the reloaded desktop page, a program that printed `ready for input`, waited at `Enter:`, and then printed the supplied value focused its inline input automatically. After explicit blur and a normal click on the empty transcript, the input regained focus, remained focused through 900 ms of polling, accepted `desktop-fixed`, and returned `got:desktop-fixed` with `[exit 0]`.
+
+The same program was run in a same-origin 390 px phone frame. The inline input focused automatically at `Enter:`, recovered after blur plus a normal click on the output area, remained focused over several poll cycles, and produced `got:phone-ok` with `[exit 0]`. The frame had no horizontal overflow. A follow-up check confirmed that Terminal and Quick Python still recover their inline inputs after the same blur-and-output-click interaction. JavaScript syntax checks, Python compilation, seven handler tests, and the Termux launcher tests all passed.
