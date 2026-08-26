@@ -40,6 +40,14 @@
 - [x] Show the currently open filename beside the Files hamburger in the top bar without crowding phone controls.
 - [x] Verify the menu and filename treatment on desktop and a 390 px phone viewport, then publish the update.
 
+## Contextual tool headers and compact phone menu
+
+- [x] Remove the active-file label collision with the Files hamburger and retain a single compact contextual title in the phone toolbar.
+- [x] Reduce the Kebab popup footprint while preserving a readable Acode-style grouping and full command access.
+- [x] Replace the large page headers in Execution, Terminal, and Quick Python with compact contextual tool headers and maximize the usable transcript/workspace area.
+- [x] Hide Run outside the editor and show the current tool name beside Files when Execution, Terminal, or Quick Python is active.
+- [x] Verify desktop and 390 px phone layouts, interactions, and regressions, then publish the update.
+
 ## Execution input focus recovery
 
 - [x] Restore reliable Android keyboard input when a running Python file reaches `input()` in Execution.

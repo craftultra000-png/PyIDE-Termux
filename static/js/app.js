@@ -33,6 +33,7 @@ const state = {
   runPollTimer: null,
   runtimeSubmitting: false,
   runtimeFocusRequested: false,
+  workspaceView: 'welcome',
   quickSession: null,
   quickPollTimer: null,
   quickSubmitting: false,
@@ -105,6 +106,7 @@ function applyLocale() {
   $('package-filter')?.setAttribute('placeholder', t('searchPackages'));
   $('set-language-value').textContent = LANGUAGE_NAMES[settings.locale] || settings.locale;
   updateSaveStatus();
+  updateToolbarContext();
 }
 
 function applyTheme() {
@@ -137,9 +139,25 @@ function applySettings() {
   applyLocale();
 }
 
+function updateToolbarContext() {
+  const view = state.workspaceView || 'welcome';
+  const display = $('current-path-display');
+  const fileView = (view === 'editor' || view === 'execution') && state.currentFile;
+  const labels = { terminal: t('terminal'), quick: t('quickPython'), settings: t('settings') };
+  const label = fileView ? state.currentFile.split('/').pop() : labels[view];
+  display.hidden = !label;
+  if (label) display.removeAttribute('data-i18n');
+  else display.setAttribute('data-i18n', 'noFile');
+  display.textContent = label || '';
+  display.title = fileView ? state.currentFile : '';
+  display.classList.toggle('toolbar-active-file--tool', !fileView && Boolean(label));
+  $('toolbar').dataset.workspaceView = view;
+}
+
 function setWorkspaceView(view) {
   if (view !== 'execution' && state.runSession) void stopExecutionSession();
   if (view !== 'quick' && state.quickSession) void stopQuickPythonSession();
+  state.workspaceView = view;
   const showSettings = view === 'settings';
   const showEditor = view === 'editor';
   const showExecution = view === 'execution';
@@ -153,6 +171,7 @@ function setWorkspaceView(view) {
   $('welcome-screen').classList.toggle('hidden', view !== 'welcome');
   $('statusbar').classList.toggle('hidden', showSettings || showExecution || showTerminal || showQuickPython);
   if (!showEditor) $('findbar').classList.add('hidden');
+  updateToolbarContext();
 }
 
 /** @param {string} path */
@@ -164,11 +183,7 @@ async function openFile(path) {
     state.isDirty = false;
     editor.setValue(data.content || '');
     setWorkspaceView('editor');
-    const currentPathDisplay = $('current-path-display');
-    currentPathDisplay.removeAttribute('data-i18n');
     $('status-file').removeAttribute('data-i18n');
-    currentPathDisplay.textContent = state.currentFile.split('/').pop();
-    currentPathDisplay.title = state.currentFile;
     $('status-file').textContent = state.currentFile.split('/').pop();
     filetree.setActive(state.currentFile);
     updateSaveStatus();
@@ -553,10 +568,7 @@ function resetOpenFile() {
   state.currentFile = null;
   state.isDirty = false;
   setWorkspaceView('welcome');
-  $('current-path-display').setAttribute('data-i18n', 'noFile');
   $('status-file').setAttribute('data-i18n', 'noFile');
-  $('current-path-display').textContent = t('noFile');
-  $('current-path-display').removeAttribute('title');
   $('status-file').textContent = t('noFile');
   updateSaveStatus();
 }

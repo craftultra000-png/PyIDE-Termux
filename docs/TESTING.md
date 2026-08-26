@@ -159,3 +159,11 @@ The Kebab menu now follows the supplied Acode hierarchy rather than a single uns
 The toolbar now shows the basename of the open file directly beside the Files hamburger. The full path remains in the element title for reference, while the visible name truncates safely when space is limited. At 390 px, `sandbox.txt` remained visible with the Kebab and Run controls and the toolbar had no horizontal overflow.
 
 In the Arabic 390 px same-origin phone frame, the menu measured 284 px from x=100 to x=384 and was entirely within the 390 px viewport. All eight actions stayed visible in the Acode-style section sequence. Selecting the new Files menu item closed the menu and opened the file drawer. The same action was also verified on desktop. JavaScript syntax checks, Python compilation, seven handler tests, and Termux launcher tests passed.
+
+## Contextual tool headers and compact phone menu — 26 August 2026
+
+The shared toolbar now carries the relevant context instead of duplicating large per-page headings. While editing or executing a file, it displays the basename beside Files. In Terminal it displays `الطرفية`; in Quick Python it displays `أوامر Python السريعة`. Terminal, Quick Python, and Settings hide the Run control, leaving a calmer and less crowded header. The open-file label now uses a flex layout beside Files, so it no longer overlaps the hamburger.
+
+Execution, Terminal, and Quick Python now use the full remaining workspace height. Their previous large title/subtitle blocks were removed, leaving a compact transcript bar with a back action, environment or file label, and clear action. Desktop checks confirmed the shared Terminal title, hidden Run control, and full-height transcript. The embedded 390 px phone view confirmed `sandbox.txt` as the editor context and no overlap with Files.
+
+The 390 px Kebab popup measured `236×349` pixels and remained inside the viewport without horizontal overflow, leaving the editor visible beneath it. Quick Python showed `أوامر Python السريعة`, hid Run, and used the full 696 px available tool height. Terminal showed `الطرفية`, also hid Run, used the same full 696 px height, and had no horizontal overflow. The Execution layout rendered as a full-height transcript with its file context. JavaScript syntax checks, Python compilation, seven handler tests, and Termux launcher tests passed.
