@@ -56,3 +56,6 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}.terminal-output,.outpu
 
 /* Final mobile console authority: outputs and editable prompts inherit one user setting. */
 @media(max-width:700px){.terminal-output--page,.output-content,.term-line,.runtime-input-row,.term-inline-input{font-size:var(--console-font-size)!important;line-height:1.55!important}.runtime-input,.terminal-inline-editor{font-size:inherit!important;line-height:inherit!important}}
+
+/* Compact Acode-style command menu: dense, quiet, and anchored to its overflow trigger. */
+.kebab-menu{width:min(248px,calc(100vw - 20px));padding:4px;border-radius:10px;box-shadow:0 12px 30px #0008}.kebab-item{min-height:38px;gap:9px;padding:6px 8px;border-radius:6px;font-size:13px;line-height:1.25;font-weight:620;white-space:nowrap}.kebab-icon{width:16px;height:16px}.kebab-item .toolbar-command-mark{width:16px;height:16px;font-size:17px}.kebab-divider{margin:4px 2px}.kebab-item--danger{margin-top:1px}@media(max-width:700px){.kebab-menu{width:min(248px,calc(100vw - 20px));padding:5px;border-radius:9px;inset-block-start:calc(var(--toolbar) + 5px)}.kebab-item{min-height:40px;gap:9px;padding:6px 8px;font-size:13px}.kebab-icon{width:17px;height:17px}.kebab-item .toolbar-command-mark{width:17px;height:17px;font-size:18px}}

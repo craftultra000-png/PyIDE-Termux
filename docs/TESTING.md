@@ -139,3 +139,7 @@ The focus handler now responds to one ordinary `click` on the empty transcript, 
 ## Terminal font-size slider binding — 26 August 2026
 
 The slider handler had still been applying an inline `font-size` only to `#terminal-output`, while the current console layout reads from the shared `--console-font-size` CSS variable. The handler now updates that shared variable immediately. In the desktop pass, moving the slider to 19 px produced `root:19px` and `fonts:19px/19px` for the terminal input and transcript. In the Arabic 390 px phone frame, moving it to 16 px produced `root:16px` and `fonts:16px/16px` for the same elements. JavaScript syntax checks, Python compilation, file-operation tests, Python-session tests, and launcher tests passed afterwards.
+
+## Compact Acode-inspired Kebab menu — 26 August 2026
+
+The Kebab menu was restyled into a denser command panel: a 248 px maximum width, 38–40 px rows, 13 px labels, 16–17 px icons, compact padding, and restrained dividers. The menu retains Keyboard shortcuts, New file, Save, Terminal, Quick Python, Settings, and the separated disconnect command. In the Arabic 390 px phone frame it measured `248x301` CSS pixels and kept every command visible in one panel. The desktop pass confirmed the same commands and compact visual hierarchy. JavaScript syntax checks, Python compilation, file-operation tests, Python-session tests, and launcher tests passed afterwards.

@@ -28,6 +28,12 @@
 - [x] Verify that changing the slider changes both transcript and editable prompt together on desktop and phone.
 - [x] Run regressions, document the result, and publish the verified fix.
 
+## Compact Acode-inspired Kebab menu
+
+- [x] Reduce the Kebab menu footprint and row density while keeping every current command available.
+- [x] Align its spacing, typography, icons, and dividers with the compact Acode-style reference.
+- [x] Verify the menu on desktop and phone, run regressions, and publish the verified update.
+
 ## Long-running execution diagnosis
 
 - [x] Trace how Python-session return codes and termination signals are produced.
