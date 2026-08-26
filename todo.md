@@ -78,6 +78,12 @@
 - [x] Preserve existing selected-item actions while allowing a copied folder to be pasted into Termux Home or another empty folder-list destination.
 - [x] Verify close-file and copy/paste flows on desktop and a 390 px phone viewport, then publish the update.
 
+## Destination creation menu
+
+- [x] Add New file and New folder actions to the blank-space destination context menu in the file explorer.
+- [x] Preselect the open destination directory for either creation action, while preserving existing item-context actions.
+- [x] Verify the new actions on desktop and a 390 px phone viewport, run regressions, and publish the update.
+
 ## Execution input focus recovery
 
 - [x] Restore reliable Android keyboard input when a running Python file reaches `input()` in Execution.

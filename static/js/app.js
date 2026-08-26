@@ -572,16 +572,16 @@ function downloadFile(path) {
   link.click();
 }
 
-function openNewFileModal() {
-  state.newFileDir = filetree.getSelectedDirectory() || state.roots[0]?.path || null;
+function openNewFileModal(destination = null) {
+  state.newFileDir = destination || filetree.getSelectedDirectory() || state.roots[0]?.path || null;
   $('new-file-dir').textContent = state.newFileDir || '';
   $('new-file-name').value = '';
   openModal('modal-new-file');
   setTimeout(() => $('new-file-name').focus(), 50);
 }
 
-function openNewFolderModal() {
-  state.newFolderDir = filetree.getSelectedDirectory() || state.roots[0]?.path || null;
+function openNewFolderModal(destination = null) {
+  state.newFolderDir = destination || filetree.getSelectedDirectory() || state.roots[0]?.path || null;
   $('new-folder-dir').textContent = state.newFolderDir || '';
   $('new-folder-name').value = '';
   openModal('modal-new-folder');
@@ -914,6 +914,8 @@ function bindEvents() {
     if (item.dataset.action === 'rename') return openRenameModal(target);
     if (item.dataset.action === 'copy') { state.clipboard = { action: 'copy', path: target.path }; return toast(t('copied')); }
     if (item.dataset.action === 'cut') { state.clipboard = { action: 'cut', path: target.path }; return toast(t('cutDone')); }
+    if (item.dataset.action === 'new-file' && target.isDestination) return openNewFileModal(target.path);
+    if (item.dataset.action === 'new-folder' && target.isDestination) return openNewFolderModal(target.path);
     if (item.dataset.action === 'paste') return pasteClipboard(target);
     if (item.dataset.action === 'download') return downloadFile(target.path);
     if (item.dataset.action === 'delete') openDeleteModal(target);
