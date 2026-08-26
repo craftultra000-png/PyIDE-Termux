@@ -18,6 +18,8 @@ assert.deepEqual(findRootForPath(roots, '/sdcard/Projects/app.py'), roots[1]);
 assert.equal(findRootForPath(roots, '/not-allowed'), undefined);
 assert.equal(translate('ar', 'run'), 'تشغيل');
 assert.equal(translate('en', 'run'), 'Run');
+assert.equal(translate('ar', 'closeFile'), 'إغلاق الملف');
+assert.equal(translate('en', 'pasteHere'), 'Paste here');
 assert.equal(translate('de', 'missing-key'), 'missing-key');
 assert.equal(RTL_LOCALES.has('ar'), true);
 assert.equal(RTL_LOCALES.has('en'), false);

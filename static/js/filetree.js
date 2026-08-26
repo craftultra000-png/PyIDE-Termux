@@ -72,6 +72,13 @@ export class FileTree {
     this._current = null;        // currently active file path
     this._rootPath = null;       // selected storage root
     this._selectedDir = null;    // destination used by creation and uploads
+    this.el.addEventListener('contextmenu', event => {
+      if (event.target.closest('.ft-item')) return;
+      const destination = event.target.closest('[data-directory]')?.dataset.directory || this.getSelectedDirectory();
+      if (!destination) return;
+      event.preventDefault();
+      this.onCtxMenu(event, { path: destination, name: '', isDir: true, isDestination: true });
+    });
   }
 
   /** Render a directory at root level */
@@ -108,6 +115,7 @@ export class FileTree {
   // ── Internals ──────────────────────────────────────────────────
 
   async _renderTree(container, dirPath, depth) {
+    container.dataset.directory = dirPath;
     let entries = this._cache.get(dirPath);
     if (!entries) {
       try {

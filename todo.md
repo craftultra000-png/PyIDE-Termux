@@ -71,6 +71,13 @@
 - [x] Keep the artifact flow generic for image-producing libraries rather than binding it only to Matplotlib.
 - [x] Verify text files, images, ZIP or unknown binaries, and generated charts on desktop and a 390 px phone viewport, then publish the update.
 
+## File closure and destination paste menu
+
+- [x] Add a Close file action to the Kebab menu that returns to the workspace without modifying or deleting the file.
+- [x] Open a destination context menu from blank file-explorer space, with Paste here enabled when a copied or cut file or folder is available.
+- [x] Preserve existing selected-item actions while allowing a copied folder to be pasted into Termux Home or another empty folder-list destination.
+- [x] Verify close-file and copy/paste flows on desktop and a 390 px phone viewport, then publish the update.
+
 ## Execution input focus recovery
 
 - [x] Restore reliable Android keyboard input when a running Python file reaches `input()` in Execution.

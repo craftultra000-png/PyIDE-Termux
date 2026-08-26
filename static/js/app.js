@@ -541,8 +541,11 @@ async function sendRuntimeInput() {
 /** @param {MouseEvent} event @param {any} entry */
 function showContextMenu(event, entry) {
   state.contextTarget = entry;
-  $('context-menu').querySelector('[data-action="paste"]').classList.toggle('ctx-paste-disabled', !state.clipboard);
   const menu = $('context-menu');
+  const destinationMenu = Boolean(entry.isDestination);
+  menu.classList.toggle('context-menu--destination', destinationMenu);
+  menu.querySelector('[data-action="paste"]').classList.toggle('ctx-paste-disabled', !state.clipboard);
+  $('context-paste-label').textContent = destinationMenu ? t('pasteHere') : t('paste');
   menu.classList.remove('hidden');
   menu.style.left = `${Math.min(event.clientX, window.innerWidth - 175)}px`;
   menu.style.top = `${Math.min(event.clientY, window.innerHeight - 220)}px`;
@@ -654,6 +657,19 @@ function resetOpenFile() {
   $('status-file').setAttribute('data-i18n', 'noFile');
   $('status-file').textContent = t('noFile');
   updateSaveStatus();
+}
+
+async function closeCurrentFile() {
+  closeKebabMenu();
+  if (!state.currentFile && !state.previewFile) return toast(t('noFile'), 'info');
+  if (state.currentFile && state.isDirty && !(await saveFile({ silent: true }))) return;
+  clearTimeout(state.autoSaveTimer);
+  state.previewFile = null;
+  state.previewReturnView = 'welcome';
+  editor.setValue('');
+  filetree.setActive(null);
+  resetOpenFile();
+  toast(t('fileClosed'), 'success');
 }
 
 function showSettings() {
@@ -904,7 +920,7 @@ function bindEvents() {
   });
 
   $('btn-kebab-toggle').addEventListener('click', event => { event.stopPropagation(); toggleKebabMenu(); });
-  $('btn-new').addEventListener('click', () => { closeKebabMenu(); openNewFileModal(); }); $('welcome-new').addEventListener('click', openNewFileModal);
+  $('btn-new').addEventListener('click', () => { closeKebabMenu(); openNewFileModal(); }); $('btn-close-file').addEventListener('click', closeCurrentFile); $('welcome-new').addEventListener('click', openNewFileModal);
   $('ft-new-file').addEventListener('click', openNewFileModal); $('ft-new-folder').addEventListener('click', openNewFolderModal);
   $('new-file-location').addEventListener('click', () => openLocationPicker('file')); $('new-folder-location').addEventListener('click', () => openLocationPicker('folder'));
   $('btn-new-file-confirm').addEventListener('click', createFile); $('btn-new-folder-confirm').addEventListener('click', createFolder);
