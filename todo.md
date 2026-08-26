@@ -92,6 +92,12 @@
 - [x] Add lightweight local Python completion for keywords, built-ins, imports, and identifiers already present in the open document.
 - [x] Verify every flow on desktop and a 390 px phone viewport, run regressions, document the result, and publish the update.
 
+## Inline GIF artifact loading
+
+- [x] Show a loading state for image artifacts and retry an image request with a fresh preview URL when a newly written GIF is not ready on the first browser load.
+- [x] Keep clickable image-preview behavior and static raster artifacts intact while handling animated GIF load failures gracefully.
+- [x] Verify a newly generated GIF on desktop and a 390 px phone viewport, run regressions, document, and publish the fix.
+
 ## Execution input focus recovery
 
 - [x] Restore reliable Android keyboard input when a running Python file reaches `input()` in Execution.

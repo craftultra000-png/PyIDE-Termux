@@ -207,3 +207,9 @@ The actual 390 × 760 phone viewport showed all three destination actions inside
 Desktop verification used a temporary project containing `main.py`, `helper.py`, and `README.md`. Project search scoped itself to the selected project directory, returned `README.md:3` for a marker query, and opened the result with the editor selection on line 3. Opening README and helper created two file tabs. A local unsaved completion in helper persisted after switching to README and back; closing the dirty helper tab saved the modification first and left README open.
 
 The project run settings form stored `main.py`, a two-line argument list, and `.` as the working directory in hidden `.pyide.json`. The Run project action then showed the configured command and returned the expected greeting, working directory, and argument values in Execution. On the actual 390 × 760 phone viewport, project search stayed within the selected project, tabs remained compact, local completion offered `print` for `pri`, and the document reported no horizontal overflow.
+
+## Inline GIF artifact loading — 26 August 2026
+
+Desktop verification used a temporary Python file that created a GIF in two write operations with a delay in between, deliberately exposing the artifact before it was valid. Execution first showed a visible loading state, retried the preview with a cache-busting URL, and then changed to the ready caption automatically after the file was complete. The preview endpoint also now bases `Content-Length` on the bytes actually read, avoiding a stale pre-read size if an image is still growing.
+
+The same deliberately incomplete GIF was run inside a 390 px-wide phone frame. After the retry cycle, the image reported a nonzero natural width and height, the loading state was removed, the caption offered full-size opening, and the phone document had no horizontal overflow.

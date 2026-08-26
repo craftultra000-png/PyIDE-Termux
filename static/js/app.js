@@ -301,7 +301,10 @@ function formatBytes(size = 0) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function previewUrl(path) { return `/api/preview?path=${encodeURIComponent(path)}`; }
+function previewUrl(path, cacheKey = '') {
+  const suffix = cacheKey === '' ? '' : `&v=${encodeURIComponent(cacheKey)}`;
+  return `/api/preview?path=${encodeURIComponent(path)}${suffix}`;
+}
 function downloadUrl(path) { return `/api/download?path=${encodeURIComponent(path)}`; }
 
 function showFilePreview(file) {
@@ -475,11 +478,10 @@ function appendRunArtifacts(artifacts = []) {
       state.runtimeFocusRequested = false;
     }
     const figure = document.createElement('figure');
-    figure.className = 'execution-artifact';
+    figure.className = 'execution-artifact execution-artifact--loading';
     const image = document.createElement('img');
-    image.src = previewUrl(artifact.path);
     image.alt = artifact.name || 'Generated chart';
-    image.loading = 'lazy';
+    image.loading = 'eager';
     image.addEventListener('click', () => showFilePreview({
       ...artifact,
       kind: 'image',
@@ -487,9 +489,35 @@ function appendRunArtifacts(artifacts = []) {
       mime: 'image/*',
     }));
     const caption = document.createElement('figcaption');
-    caption.textContent = `${artifact.name || 'Generated image'} · فتح بالحجم الكامل`;
+    const artifactName = artifact.name || 'Generated image';
+    const readyCaption = `${artifactName} · فتح بالحجم الكامل`;
+    caption.textContent = `${artifactName} · جارٍ التحميل…`;
+    let retryTimer = null;
+    const loadArtifact = (attempt = 0) => {
+      if (!image.isConnected) return;
+      image.src = previewUrl(artifact.path, `${Date.now()}-${attempt}`);
+    };
+    image.addEventListener('load', () => {
+      if (!image.naturalWidth || !image.naturalHeight) return;
+      clearTimeout(retryTimer);
+      figure.classList.remove('execution-artifact--loading', 'execution-artifact--error');
+      caption.textContent = readyCaption;
+    });
+    image.addEventListener('error', () => {
+      const attempts = Number(figure.dataset.loadAttempts || 0) + 1;
+      figure.dataset.loadAttempts = String(attempts);
+      if (attempts <= 5) {
+        caption.textContent = `${artifactName} · جارٍ إعادة التحميل…`;
+        retryTimer = setTimeout(() => loadArtifact(attempts), attempts * 180);
+      } else {
+        figure.classList.remove('execution-artifact--loading');
+        figure.classList.add('execution-artifact--error');
+        caption.textContent = `${artifactName} · تعذر العرض المضمن، افتح بالحجم الكامل`;
+      }
+    });
     figure.append(image, caption);
     output.append(figure);
+    loadArtifact();
   }
   output.scrollTop = output.scrollHeight;
 }
