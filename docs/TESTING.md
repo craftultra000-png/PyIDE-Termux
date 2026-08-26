@@ -151,3 +151,11 @@ The remaining Android keyboard dismissal was traced to the document-level Kebab-
 On the reloaded desktop page, a program that printed `ready for input`, waited at `Enter:`, and then printed the supplied value focused its inline input automatically. After explicit blur and a normal click on the empty transcript, the input regained focus, remained focused through 900 ms of polling, accepted `desktop-fixed`, and returned `got:desktop-fixed` with `[exit 0]`.
 
 The same program was run in a same-origin 390 px phone frame. The inline input focused automatically at `Enter:`, recovered after blur plus a normal click on the output area, remained focused over several poll cycles, and produced `got:phone-ok` with `[exit 0]`. The frame had no horizontal overflow. A follow-up check confirmed that Terminal and Quick Python still recover their inline inputs after the same blur-and-output-click interaction. JavaScript syntax checks, Python compilation, seven handler tests, and the Termux launcher tests all passed.
+
+## Acode menu structure and active-file header — 26 August 2026
+
+The Kebab menu now follows the supplied Acode hierarchy rather than a single unstructured block. New file and Save form the first action group; Files, Keyboard shortcuts, Terminal, and Quick Python form the workspace group; Settings occupies its own group; and Disconnect remains visually separated as the destructive session action. Each group has a restrained divider, aligned icon column, consistent row rhythm, and touch-sized 56 px phone rows.
+
+The toolbar now shows the basename of the open file directly beside the Files hamburger. The full path remains in the element title for reference, while the visible name truncates safely when space is limited. At 390 px, `sandbox.txt` remained visible with the Kebab and Run controls and the toolbar had no horizontal overflow.
+
+In the Arabic 390 px same-origin phone frame, the menu measured 284 px from x=100 to x=384 and was entirely within the 390 px viewport. All eight actions stayed visible in the Acode-style section sequence. Selecting the new Files menu item closed the menu and opened the file drawer. The same action was also verified on desktop. JavaScript syntax checks, Python compilation, seven handler tests, and Termux launcher tests passed.

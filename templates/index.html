@@ -9,23 +9,34 @@
 </head>
 <body>
   <header class="toolbar" id="toolbar">
-    <div class="toolbar-filepath code-flow" id="current-path-display" data-i18n="noFile">لا يوجد ملف مفتوح</div>
     <div class="toolbar-actions">
       <div class="kebab" id="kebab">
         <button class="tb-btn tb-btn--kebab" id="btn-kebab-toggle" title="القائمة" data-i18n-title="menu" aria-label="Menu" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="19" r="1" fill="currentColor"/></svg></button>
         <div class="kebab-menu" id="kebab-menu" role="menu">
-          <button class="kebab-item" id="btn-command" role="menuitem"><span class="kebab-icon toolbar-command-mark" aria-hidden="true">⌘</span><span data-i18n="shortcuts">الاختصارات</span></button>
-          <button class="kebab-item" id="btn-new" role="menuitem"><svg class="kebab-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg><span data-i18n="newFile">ملف جديد</span></button>
-          <button class="kebab-item" id="btn-save" role="menuitem"><svg class="kebab-icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span data-i18n="save">حفظ</span></button>
-          <button class="kebab-item" id="btn-terminal-open" role="menuitem"><svg class="kebab-icon" viewBox="0 0 24 24"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg><span data-i18n="terminal">الطرفية</span></button>
-          <button class="kebab-item" id="btn-quick-python-open" role="menuitem"><svg class="kebab-icon" viewBox="0 0 24 24"><path d="M8 5 3 12l5 7"/><path d="m16 5 5 7-5 7"/><path d="m14 3-4 18"/></svg><span data-i18n="quickPython">أوامر Python السريعة</span></button>
-          <button class="kebab-item" id="btn-settings-open" role="menuitem"><svg class="kebab-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 0 001.82-.33l.06-.06A2 2 0 0119.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010-4h-.09a1.65 1.65 0 00-1.51 1z"/></svg><span data-i18n="settings">الإعدادات</span></button>
+          <div class="kebab-section">
+            <button class="kebab-item" id="btn-new" role="menuitem"><svg class="kebab-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg><span data-i18n="newFile">ملف جديد</span></button>
+            <button class="kebab-item" id="btn-save" role="menuitem"><svg class="kebab-icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span data-i18n="save">حفظ</span></button>
+          </div>
+          <div class="kebab-divider" role="separator"></div>
+          <div class="kebab-section">
+            <button class="kebab-item" id="btn-menu-files" role="menuitem"><svg class="kebab-icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h5l2 3h7a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span data-i18n="files">الملفات</span></button>
+            <button class="kebab-item" id="btn-command" role="menuitem"><span class="kebab-icon toolbar-command-mark" aria-hidden="true">⌘</span><span data-i18n="shortcuts">الاختصارات</span></button>
+            <button class="kebab-item" id="btn-terminal-open" role="menuitem"><svg class="kebab-icon" viewBox="0 0 24 24"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg><span data-i18n="terminal">الطرفية</span></button>
+            <button class="kebab-item" id="btn-quick-python-open" role="menuitem"><svg class="kebab-icon" viewBox="0 0 24 24"><path d="M8 5 3 12l5 7"/><path d="m16 5 5 7-5 7"/><path d="m14 3-4 18"/></svg><span data-i18n="quickPython">أوامر Python السريعة</span></button>
+          </div>
+          <div class="kebab-divider" role="separator"></div>
+          <div class="kebab-section">
+            <button class="kebab-item" id="btn-settings-open" role="menuitem"><svg class="kebab-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06A2 2 0 0119.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010-4h-.09a1.65 1.65 0 00-1.51 1z"/></svg><span data-i18n="settings">الإعدادات</span></button>
+          </div>
           <div class="kebab-divider" role="separator"></div>
           <button class="kebab-item kebab-item--danger" id="btn-disconnect" role="menuitem"><svg class="kebab-icon" viewBox="0 0 24 24"><path d="M18 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3"/><path d="m14 12 7 0"/><path d="m18 9 3 3-3 3"/></svg><span data-i18n="disconnect">قطع الاتصال وإغلاق الجلسة</span></button>
         </div>
       </div>
       <button class="tb-btn tb-btn--run" id="btn-run" title="تشغيل (F5)" data-i18n-title="run"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg><span data-i18n="run">تشغيل</span></button>
+    </div>
+    <div class="toolbar-file-context">
       <button class="tb-btn" id="btn-sidebar-toggle" title="الملفات" data-i18n-title="files"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+      <div class="toolbar-filepath toolbar-active-file code-flow" id="current-path-display" data-i18n="noFile">لا يوجد ملف مفتوح</div>
     </div>
   </header>
 

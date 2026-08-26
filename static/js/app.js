@@ -164,9 +164,11 @@ async function openFile(path) {
     state.isDirty = false;
     editor.setValue(data.content || '');
     setWorkspaceView('editor');
-    $('current-path-display').removeAttribute('data-i18n');
+    const currentPathDisplay = $('current-path-display');
+    currentPathDisplay.removeAttribute('data-i18n');
     $('status-file').removeAttribute('data-i18n');
-    $('current-path-display').textContent = state.currentFile;
+    currentPathDisplay.textContent = state.currentFile.split('/').pop();
+    currentPathDisplay.title = state.currentFile;
     $('status-file').textContent = state.currentFile.split('/').pop();
     filetree.setActive(state.currentFile);
     updateSaveStatus();
@@ -554,6 +556,7 @@ function resetOpenFile() {
   $('current-path-display').setAttribute('data-i18n', 'noFile');
   $('status-file').setAttribute('data-i18n', 'noFile');
   $('current-path-display').textContent = t('noFile');
+  $('current-path-display').removeAttribute('title');
   $('status-file').textContent = t('noFile');
   updateSaveStatus();
 }
@@ -851,7 +854,7 @@ function bindEvents() {
   $('btn-new-file-confirm').addEventListener('click', createFile); $('btn-new-folder-confirm').addEventListener('click', createFolder);
   $('new-file-name').addEventListener('keydown', event => { if (event.key === 'Enter') createFile(); }); $('new-folder-name').addEventListener('keydown', event => { if (event.key === 'Enter') createFolder(); });
   $('btn-save').addEventListener('click', () => { closeKebabMenu(); saveFile(); }); $('btn-run').addEventListener('click', runCurrentFile);
-  $('btn-command').addEventListener('click', () => { closeKebabMenu(); commandPalette.open(); }); $('btn-sidebar-toggle').addEventListener('click', () => toggleSidebar()); $('btn-sidebar-close').addEventListener('click', hideSidebar); $('sidebar-backdrop').addEventListener('click', hideSidebar);
+  $('btn-command').addEventListener('click', () => { closeKebabMenu(); commandPalette.open(); }); $('btn-sidebar-toggle').addEventListener('click', () => toggleSidebar()); $('btn-menu-files').addEventListener('click', () => { closeKebabMenu(); toggleSidebar(true); }); $('btn-sidebar-close').addEventListener('click', hideSidebar); $('sidebar-backdrop').addEventListener('click', hideSidebar);
   $('btn-settings-open').addEventListener('click', () => { closeKebabMenu(); showSettings(); }); $('btn-terminal-open').addEventListener('click', () => { closeKebabMenu(); showTerminalPage(); }); $('btn-quick-python-open').addEventListener('click', () => { closeKebabMenu(); showQuickPythonPage(); }); $('btn-disconnect').addEventListener('click', disconnectAndCloseSession); $('btn-settings-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome'));
   $('btn-execution-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome')); $('btn-terminal-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome')); $('btn-quick-python-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome'));
   $('welcome-open').addEventListener('click', () => toggleSidebar(true)); $('ft-refresh').addEventListener('click', async () => { await filetree.refresh(); toast(t('refreshed'), 'success'); });

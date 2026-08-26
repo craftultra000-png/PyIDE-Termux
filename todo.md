@@ -34,6 +34,12 @@
 - [x] Align its spacing, typography, icons, and dividers with the compact Acode-style reference.
 - [x] Verify the menu on desktop and phone, run regressions, and publish the verified update.
 
+## Acode menu structure and active-file header
+
+- [x] Rebuild the Kebab menu hierarchy, section dividers, row rhythm, and icon alignment to follow the supplied Acode reference.
+- [x] Show the currently open filename beside the Files hamburger in the top bar without crowding phone controls.
+- [x] Verify the menu and filename treatment on desktop and a 390 px phone viewport, then publish the update.
+
 ## Execution input focus recovery
 
 - [x] Restore reliable Android keyboard input when a running Python file reaches `input()` in Execution.
