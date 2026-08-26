@@ -850,7 +850,7 @@ async function uploadFiles(event) {
 
 function bindSettings() {
   $('set-font-size').addEventListener('input', event => { settings.fontSize = +event.target.value; $('set-font-size-val').textContent = `${settings.fontSize}px`; editor.setFontSize(settings.fontSize); persistSettings(); });
-  $('set-term-font-size').addEventListener('input', event => { settings.termFontSize = +event.target.value; $('set-term-font-size-val').textContent = `${settings.termFontSize}px`; $('terminal-output').style.fontSize = `${settings.termFontSize}px`; persistSettings(); });
+  $('set-term-font-size').addEventListener('input', event => { settings.termFontSize = +event.target.value; $('set-term-font-size-val').textContent = `${settings.termFontSize}px`; document.documentElement.style.setProperty('--console-font-size', `${settings.termFontSize}px`); persistSettings(); });
   $('set-word-wrap').addEventListener('change', event => { settings.wordWrap = event.target.checked; editor.setWordWrap(settings.wordWrap); persistSettings(); });
   $('set-auto-bracket').addEventListener('change', event => { settings.autoBracket = event.target.checked; editor.autoBracket = settings.autoBracket; persistSettings(); });
   $('set-auto-save').addEventListener('change', event => { settings.autoSave = event.target.checked; persistSettings(); });

@@ -22,6 +22,12 @@
 - [x] Move the Files hamburger button to the opposite end of the phone toolbar.
 - [x] Verify keyboard recovery, console typography, and the hamburger position on desktop and phone, then publish.
 
+## Terminal font-size setting follow-up
+
+- [x] Restore immediate application of the terminal font-size slider to Terminal and Quick Python outputs and inputs.
+- [x] Verify that changing the slider changes both transcript and editable prompt together on desktop and phone.
+- [x] Run regressions, document the result, and publish the verified fix.
+
 ## Long-running execution diagnosis
 
 - [x] Trace how Python-session return codes and termination signals are produced.
