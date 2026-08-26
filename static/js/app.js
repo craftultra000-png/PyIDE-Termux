@@ -154,8 +154,9 @@ function updateToolbarContext() {
 }
 
 function setWorkspaceView(view) {
-  if (view !== 'execution' && state.runSession) void stopExecutionSession();
+  if (view !== 'execution') void stopExecutionSession();
   if (view !== 'quick' && state.quickSession) void stopQuickPythonSession();
+  if (view !== 'terminal') void terminal.stopActiveCommand();
   state.workspaceView = view;
   const showSettings = view === 'settings';
   const showLibraries = view === 'libraries';

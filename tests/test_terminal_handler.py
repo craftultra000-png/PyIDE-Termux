@@ -1,8 +1,11 @@
 import subprocess
+import sys
+import time
 import unittest
 from unittest.mock import patch
 
-from handlers.terminal_handler import run_command
+from handlers.terminal_handler import (poll_terminal_session, run_command,
+                                       start_terminal_session, stop_terminal_session)
 
 
 class TerminalHandlerTests(unittest.TestCase):
@@ -29,6 +32,35 @@ class TerminalHandlerTests(unittest.TestCase):
 
         self.assertEqual(mocked_run.call_args.args[0], "pkg install -y python")
         self.assertEqual(result["stdout"], "ok\n")
+
+    def test_live_session_streams_output_before_command_finishes(self):
+        command = f'{sys.executable} -u -c "import time; print(\'first\', flush=True); time.sleep(.2); print(\'second\', flush=True)"'
+        started = start_terminal_session(command)
+        self.assertIn("session", started)
+        output = started["output"]
+        result = started
+        for _ in range(12):
+            if result["done"]:
+                break
+            time.sleep(.05)
+            result = poll_terminal_session(started["session"])
+            output += result["output"]
+
+        self.assertTrue(result["done"])
+        self.assertIn("first", output)
+        self.assertIn("second", output)
+
+    def test_live_session_can_be_stopped(self):
+        command = f'{sys.executable} -u -c "import time; print(\'waiting\', flush=True); time.sleep(10)"'
+        started = start_terminal_session(command)
+        try:
+            stopped = stop_terminal_session(started["session"])
+        finally:
+            if not started.get("done"):
+                stop_terminal_session(started["session"])
+
+        self.assertTrue(stopped["done"])
+        self.assertTrue(stopped["stopped"])
 
 
 if __name__ == "__main__":

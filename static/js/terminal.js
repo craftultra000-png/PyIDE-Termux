@@ -14,6 +14,7 @@ export class Terminal {
     this.histIdx = -1;
     this._pendingLine = '';
     this.executing = false;
+    this.sessionId = null;
 
     this._appendInput();
     this.out.addEventListener('click', event => {
@@ -52,7 +53,7 @@ export class Terminal {
   /** Clear output */
   clear() {
     this.out.innerHTML = '';
-    this._appendInput();
+    if (!this.executing) this._appendInput();
   }
 
   /** Focus the inline input when the terminal page opens. */
@@ -60,6 +61,21 @@ export class Terminal {
 
   /** Update the non-visual accessible label after a UI language change. */
   setPlaceholder(value) { if (this.input) this.input.setAttribute('aria-label', value); }
+
+  /** Stop an active shell process when leaving Terminal or interrupting work. */
+  async stopActiveCommand() {
+    const session = this.sessionId;
+    if (!session) return;
+    this.sessionId = null;
+    this.executing = false;
+    try {
+      await fetch('/api/cmd/session/stop', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session }),
+      });
+    } catch { /* A stopped server must not block navigation. */ }
+    if (!this.input) this._appendInput();
+  }
 
   // ── Input & History ─────────────────────────────────────────
 
@@ -156,7 +172,7 @@ export class Terminal {
       }
 
       const body = { cmd, cwd: this.cwd || undefined };
-      const resp = await fetch('/api/cmd', {
+      const resp = await fetch('/api/cmd/session/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -165,16 +181,47 @@ export class Terminal {
       if (data.error) {
         this.printErr(data.error);
       } else {
-        this.printOut(data.stdout);
-        this.printErr(data.stderr);
+        this.sessionId = data.session;
+        this._appendSessionOutput(data.output);
+        if (data.done) this._finishCommand();
+        else void this._pollSession();
       }
     } catch (err) {
       this.printErr(String(err));
-    } finally {
-      if (!this.input) this._appendInput();
-      this.executing = false;
-      this._scrollBottom();
+      this._finishCommand();
     }
+  }
+
+  async _pollSession() {
+    while (this.executing && this.sessionId) {
+      await new Promise(resolve => setTimeout(resolve, 180));
+      const session = this.sessionId;
+      try {
+        const response = await fetch('/api/cmd/session/poll', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session }),
+        });
+        const data = await response.json();
+        if (session !== this.sessionId) return;
+        if (data.error) { this.printErr(data.error); this._finishCommand(); return; }
+        this._appendSessionOutput(data.output);
+        if (data.done) { this._finishCommand(); return; }
+      } catch (err) {
+        if (session === this.sessionId) { this.printErr(String(err)); this._finishCommand(); }
+        return;
+      }
+    }
+  }
+
+  _appendSessionOutput(output) {
+    if (output) this.printOut(output);
+  }
+
+  _finishCommand() {
+    this.sessionId = null;
+    this.executing = false;
+    if (!this.input) this._appendInput();
+    this._scrollBottom();
   }
 
   // ── Rendering ────────────────────────────────────────────────

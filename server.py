@@ -33,7 +33,8 @@ from handlers.python_handler  import (run_file, run_snippet, start_file_session,
                                       start_repl_session, send_session_input,
                                       poll_session, stop_session)
 from handlers.install_handler import install_package, list_installed
-from handlers.terminal_handler import run_command
+from handlers.terminal_handler import (run_command, start_terminal_session,
+                                       poll_terminal_session, stop_terminal_session)
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -213,6 +214,12 @@ class IDEHandler(BaseHTTPRequestHandler):
             self._api_repl_session_start()
         elif path == "/api/cmd":
             self._api_cmd()
+        elif path == "/api/cmd/session/start":
+            self._api_terminal_session_start()
+        elif path == "/api/cmd/session/poll":
+            self._api_terminal_session_poll()
+        elif path == "/api/cmd/session/stop":
+            self._api_terminal_session_stop()
         elif path == "/api/install":
             self._api_install()
         elif path == "/api/upload":
@@ -324,6 +331,30 @@ class IDEHandler(BaseHTTPRequestHandler):
             self._send_error_json("Missing cmd")
             return
         self._send_json(run_command(cmd, cwd))
+
+    def _api_terminal_session_start(self):
+        body = self._read_json_body()
+        cmd = body.get("cmd", "").strip() if body else ""
+        if not cmd:
+            self._send_error_json("Missing cmd")
+            return
+        self._send_json(start_terminal_session(cmd, body.get("cwd", config.TERMUX_HOME)))
+
+    def _api_terminal_session_poll(self):
+        body = self._read_json_body()
+        session_id = body.get("session", "") if body else ""
+        if not session_id:
+            self._send_error_json("Missing terminal session")
+            return
+        self._send_json(poll_terminal_session(session_id))
+
+    def _api_terminal_session_stop(self):
+        body = self._read_json_body()
+        session_id = body.get("session", "") if body else ""
+        if not session_id:
+            self._send_error_json("Missing terminal session")
+            return
+        self._send_json(stop_terminal_session(session_id))
 
     def _api_install(self):
         body = self._read_json_body()

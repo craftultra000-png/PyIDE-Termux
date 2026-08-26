@@ -56,6 +56,13 @@
 - [x] Remove direct library-install controls and add a read-only installed-libraries page with clear Terminal installation guidance.
 - [x] Verify Terminal installation commands, Settings, and the library page on desktop and a 390 px phone viewport, then publish the update.
 
+## Live Terminal output and Matplotlib installation guidance
+
+- [x] Stream Terminal stdout and stderr while a long-running command is still active instead of returning output only when the command exits.
+- [x] Preserve a safe way to stop an active Terminal command when the user leaves the Terminal page or explicitly interrupts it.
+- [x] Verify the Termux-supported Matplotlib package path and update the library guidance with the correct command.
+- [x] Test live Terminal output on desktop and a 390 px phone viewport, run regressions, and publish the verified fix.
+
 ## Execution input focus recovery
 
 - [x] Restore reliable Android keyboard input when a running Python file reaches `input()` in Execution.
