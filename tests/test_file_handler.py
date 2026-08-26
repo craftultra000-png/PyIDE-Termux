@@ -54,6 +54,31 @@ class FileHandlerTests(unittest.TestCase):
         self.assertIn('error', result)
         self.assertFalse(os.path.exists('/tmp/pyide-outside-root.txt'))
 
+    def test_classifies_images_and_blocks_binary_content_from_editor(self):
+        image = os.path.join(self.root, 'chart.png')
+        archive = os.path.join(self.root, 'bundle.zip')
+        large_text = os.path.join(self.root, 'large.txt')
+        with open(image, 'wb') as file:
+            file.write(b'\x89PNG\r\n\x1a\nminimal-image')
+        with open(archive, 'wb') as file:
+            file.write(b'PK\x03\x04binary-archive')
+        with open(large_text, 'w', encoding='utf-8') as file:
+            file.write('x' * (file_handler.MAX_EDITOR_BYTES + 1))
+
+        image_result = file_handler.read_file(image)
+        archive_result = file_handler.read_file(archive)
+        large_result = file_handler.read_file(large_text)
+        preview = file_handler.preview_info(image)
+
+        self.assertEqual(image_result['kind'], 'image')
+        self.assertNotIn('content', image_result)
+        self.assertEqual(archive_result['kind'], 'binary')
+        self.assertNotIn('content', archive_result)
+        self.assertEqual(large_result['kind'], 'binary')
+        self.assertNotIn('content', large_result)
+        self.assertTrue(preview['ok'])
+        self.assertEqual(preview['kind'], 'image')
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

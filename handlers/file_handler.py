@@ -14,6 +14,12 @@ import urllib.parse
 from config import ALLOWED_ROOTS, BLOCKED_PREFIXES, TERMUX_HOME, MAX_UPLOAD_BYTES
 
 
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
+ARCHIVE_EXTENSIONS = {".zip", ".tar", ".gz", ".bz2", ".xz", ".7z", ".rar", ".apk", ".whl"}
+BINARY_EXTENSIONS = ARCHIVE_EXTENSIONS | {".pdf", ".mp3", ".wav", ".mp4", ".mkv", ".avi", ".so", ".dll", ".exe", ".bin", ".db", ".sqlite", ".pyc", ".ttf", ".otf"}
+MAX_EDITOR_BYTES = 1_500_000
+
+
 # ─── Security ─────────────────────────────────────────────────────────────────
 
 def _resolve(path: str) -> str | None:
@@ -106,7 +112,7 @@ def list_dir(path: str) -> dict:
 # ─── Read File ────────────────────────────────────────────────────────────────
 
 def read_file(path: str) -> dict:
-    """Read a text file and return its content."""
+    """Read only a verified, reasonably sized text file for the editor."""
     real, err = _safe(path)
     if err:
         return {"error": err}
@@ -114,12 +120,38 @@ def read_file(path: str) -> dict:
     if not os.path.isfile(real):
         return {"error": "Not a file"}
 
+    info = _file_kind(real)
+    if info["kind"] != "text":
+        return info
+
     try:
-        with open(real, "r", encoding="utf-8", errors="replace") as fh:
+        with open(real, "r", encoding="utf-8", errors="strict") as fh:
             content = fh.read()
-        return {"path": real, "content": content}
+        return {**info, "content": content}
     except Exception as exc:
         return {"error": str(exc)}
+
+
+def _file_kind(real: str) -> dict:
+    """Classify a validated file without ever loading a binary payload in full."""
+    name = os.path.basename(real)
+    ext = os.path.splitext(name)[1].lower()
+    mime, _ = mimetypes.guess_type(real)
+    size = os.path.getsize(real)
+    base = {"path": real, "name": name, "ext": ext, "size": size, "mime": mime or "application/octet-stream"}
+    if ext in IMAGE_EXTENSIONS:
+        return {**base, "kind": "image"}
+    if ext in BINARY_EXTENSIONS or size > MAX_EDITOR_BYTES:
+        return {**base, "kind": "binary"}
+    try:
+        with open(real, "rb") as fh:
+            sample = fh.read(8192)
+        if b"\x00" in sample:
+            return {**base, "kind": "binary"}
+        sample.decode("utf-8", errors="strict")
+    except (UnicodeDecodeError, OSError):
+        return {**base, "kind": "binary"}
+    return {**base, "kind": "text"}
 
 
 # ─── Write / Create File ──────────────────────────────────────────────────────
@@ -263,3 +295,16 @@ def download_info(path: str) -> dict:
         "mime":     mime or "application/octet-stream",
         "size":     os.path.getsize(real),
     }
+
+
+def preview_info(path: str) -> dict:
+    """Return metadata for a raster image allowed to render inline in PyIDE."""
+    real, err = _safe(path)
+    if err:
+        return {"error": err}
+    if not os.path.isfile(real):
+        return {"error": "Not a file"}
+    info = _file_kind(real)
+    if info["kind"] != "image":
+        return {"error": "This file cannot be previewed as an image"}
+    return {"ok": True, **info}

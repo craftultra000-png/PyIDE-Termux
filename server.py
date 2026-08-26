@@ -28,7 +28,7 @@ import config
 from handlers.file_handler    import (list_dir, read_file, write_file,
                                        delete_path, create_folder,
                                        move_path, copy_path,
-                                       upload_file, download_info)
+                                       upload_file, download_info, preview_info)
 from handlers.python_handler  import (run_file, run_snippet, start_file_session,
                                       start_repl_session, send_session_input,
                                       poll_session, stop_session)
@@ -164,6 +164,24 @@ class IDEHandler(BaseHTTPRequestHandler):
                     "Content-Disposition",
                     f'attachment; filename="{info["filename"]}"',
                 )
+                self.end_headers()
+                self.wfile.write(data)
+            except Exception as exc:
+                self._send_error_json(str(exc))
+
+        elif path == "/api/preview":
+            target = qs.get("path", "")
+            info = preview_info(target)
+            if "error" in info:
+                self._send_error_json(info["error"])
+                return
+            try:
+                with open(info["path"], "rb") as fh:
+                    data = fh.read()
+                self.send_response(200)
+                self.send_header("Content-Type", info["mime"])
+                self.send_header("Content-Length", str(info["size"]))
+                self.send_header("Cache-Control", "no-store")
                 self.end_headers()
                 self.wfile.write(data)
             except Exception as exc:

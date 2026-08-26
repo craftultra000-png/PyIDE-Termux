@@ -39,6 +39,9 @@ const state = {
   quickSubmitting: false,
   quickInputRow: null,
   quickInput: null,
+  previewFile: null,
+  previewReturnView: 'welcome',
+  runArtifacts: new Set(),
   packages: [],
 };
 
@@ -142,14 +145,15 @@ function updateToolbarContext() {
   const view = state.workspaceView || 'welcome';
   const display = $('current-path-display');
   const fileView = (view === 'editor' || view === 'execution') && state.currentFile;
+  const previewView = view === 'preview' && state.previewFile;
   const labels = { terminal: t('terminal'), quick: t('quickPython'), settings: t('settings'), libraries: t('installedLibraries') };
-  const label = fileView ? state.currentFile.split('/').pop() : labels[view];
+  const label = fileView ? state.currentFile.split('/').pop() : previewView ? state.previewFile.name : labels[view];
   display.hidden = !label;
   if (label) display.removeAttribute('data-i18n');
   else display.setAttribute('data-i18n', 'noFile');
   display.textContent = label || '';
-  display.title = fileView ? state.currentFile : '';
-  display.classList.toggle('toolbar-active-file--tool', !fileView && Boolean(label));
+  display.title = fileView ? state.currentFile : previewView ? state.previewFile.path : '';
+  display.classList.toggle('toolbar-active-file--tool', !fileView && !previewView && Boolean(label));
   $('toolbar').dataset.workspaceView = view;
 }
 
@@ -164,14 +168,16 @@ function setWorkspaceView(view) {
   const showExecution = view === 'execution';
   const showTerminal = view === 'terminal';
   const showQuickPython = view === 'quick';
+  const showPreview = view === 'preview';
   $('settings-page').classList.toggle('hidden', !showSettings);
   $('libraries-page').classList.toggle('hidden', !showLibraries);
   $('editor-container').classList.toggle('hidden', !showEditor);
   $('execution-page').classList.toggle('hidden', !showExecution);
   $('terminal-page').classList.toggle('hidden', !showTerminal);
   $('quick-python-page').classList.toggle('hidden', !showQuickPython);
+  $('file-preview-page').classList.toggle('hidden', !showPreview);
   $('welcome-screen').classList.toggle('hidden', view !== 'welcome');
-  $('statusbar').classList.toggle('hidden', showSettings || showLibraries || showExecution || showTerminal || showQuickPython);
+  $('statusbar').classList.toggle('hidden', showSettings || showLibraries || showExecution || showTerminal || showQuickPython || showPreview);
   if (!showEditor) $('findbar').classList.add('hidden');
   updateToolbarContext();
 }
@@ -181,6 +187,7 @@ async function openFile(path) {
   try {
     const data = await api(`/api/file?path=${encodeURIComponent(path)}`);
     if (data.error) return toast(data.error, 'error');
+    if (data.kind === 'image' || data.kind === 'binary') return showFilePreview(data);
     state.currentFile = data.path || path;
     state.isDirty = false;
     editor.setValue(data.content || '');
@@ -195,6 +202,46 @@ async function openFile(path) {
   } catch (error) {
     toast(error.message || t('loadingError'), 'error');
   }
+}
+
+function formatBytes(size = 0) {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function previewUrl(path) { return `/api/preview?path=${encodeURIComponent(path)}`; }
+function downloadUrl(path) { return `/api/download?path=${encodeURIComponent(path)}`; }
+
+function showFilePreview(file) {
+  state.previewReturnView = state.currentFile ? 'editor' : 'welcome';
+  state.previewFile = file;
+  $('preview-file-name').textContent = file.name || file.path.split('/').pop();
+  $('preview-file-meta').textContent = `${file.ext || 'file'} · ${formatBytes(file.size)}`;
+  const download = $('btn-preview-download');
+  download.href = downloadUrl(file.path);
+  download.download = file.name || '';
+  const body = $('preview-body');
+  body.replaceChildren();
+  if (file.kind === 'image') {
+    const image = document.createElement('img');
+    image.className = 'file-preview-image';
+    image.src = previewUrl(file.path);
+    image.alt = file.name || 'Image preview';
+    body.append(image);
+  } else {
+    const notice = document.createElement('div');
+    notice.className = 'binary-preview-notice';
+    notice.innerHTML = '<strong>ملف غير نصي</strong><span>لن يتم فتح هذا الملف داخل المحرر لحماية الواجهة من التجمّد. يمكنك تنزيله أو فتحه بالتطبيق المناسب.</span>';
+    body.append(notice);
+  }
+  setWorkspaceView('preview');
+  hideSidebar();
+}
+
+function closeFilePreview() {
+  state.previewFile = null;
+  setWorkspaceView(state.previewReturnView === 'editor' && state.currentFile ? 'editor' : 'welcome');
 }
 
 /** @param {{ silent?: boolean }} [options] */
@@ -235,6 +282,36 @@ function appendRunOutput(text, className = 'out-stdout') {
   line.textContent = text;
   $('output-content').append(line);
   $('output-content').scrollTop = $('output-content').scrollHeight;
+}
+
+function appendRunArtifacts(artifacts = []) {
+  if (!Array.isArray(artifacts) || !artifacts.length) return;
+  const output = $('output-content');
+  for (const artifact of artifacts) {
+    if (!artifact?.path || state.runArtifacts.has(artifact.path)) continue;
+    state.runArtifacts.add(artifact.path);
+    if (state.runtimeInputRow?.isConnected) {
+      state.runtimeInputRow.remove();
+      state.runtimeFocusRequested = false;
+    }
+    const figure = document.createElement('figure');
+    figure.className = 'execution-artifact';
+    const image = document.createElement('img');
+    image.src = previewUrl(artifact.path);
+    image.alt = artifact.name || 'Generated chart';
+    image.loading = 'lazy';
+    image.addEventListener('click', () => showFilePreview({
+      ...artifact,
+      kind: 'image',
+      ext: artifact.name?.includes('.') ? `.${artifact.name.split('.').pop()}` : '',
+      mime: 'image/*',
+    }));
+    const caption = document.createElement('figcaption');
+    caption.textContent = `${artifact.name || 'Generated image'} · فتح بالحجم الكامل`;
+    figure.append(image, caption);
+    output.append(figure);
+  }
+  output.scrollTop = output.scrollHeight;
 }
 
 function stopRunPolling() { clearTimeout(state.runPollTimer); state.runPollTimer = null; }
@@ -414,7 +491,9 @@ async function disconnectAndCloseSession() {
 function handleRunSession(data) {
   if (data.error) { appendRunOutput(data.error, 'out-stderr'); finishRunSession(-1); return; }
   $('output-content').replaceChildren();
+  state.runArtifacts = new Set();
   appendRunOutput(data.output || '');
+  appendRunArtifacts(data.artifacts);
   if (data.done) { finishRunSession(data.returncode); return; }
   state.runSession = data.session;
   setRuntimeInputVisible(true, { focus: true });
@@ -430,6 +509,7 @@ function scheduleRunPoll() {
     if (state.runSession !== sessionId) return;
     if (data.error) { appendRunOutput(data.error, 'out-stderr'); finishRunSession(-1); return; }
     appendRunOutput(data.output || '');
+    appendRunArtifacts(data.artifacts);
     if (data.done) finishRunSession(data.returncode);
     else { setRuntimeInputVisible(true, { focus: true }); scheduleRunPoll(); }
   }, 180);
@@ -453,6 +533,7 @@ async function sendRuntimeInput() {
   if (state.runSession !== sessionId) { state.runtimeSubmitting = false; return; }
   if (data.error) { appendRunOutput(data.error, 'out-stderr'); finishRunSession(-1); return; }
   appendRunOutput(data.output || '');
+  appendRunArtifacts(data.artifacts);
   if (data.done) finishRunSession(data.returncode);
   else { state.runtimeSubmitting = false; setRuntimeInputVisible(true, { focus: true }); scheduleRunPoll(); }
 }
@@ -831,7 +912,7 @@ function bindEvents() {
   $('btn-save').addEventListener('click', () => { closeKebabMenu(); saveFile(); }); $('btn-run').addEventListener('click', runCurrentFile);
   $('btn-command').addEventListener('click', () => { closeKebabMenu(); commandPalette.open(); }); $('btn-sidebar-toggle').addEventListener('click', () => toggleSidebar()); $('btn-menu-files').addEventListener('click', () => { closeKebabMenu(); toggleSidebar(true); }); $('btn-sidebar-close').addEventListener('click', hideSidebar); $('sidebar-backdrop').addEventListener('click', hideSidebar);
   $('btn-settings-open').addEventListener('click', () => { closeKebabMenu(); showSettings(); }); $('btn-terminal-open').addEventListener('click', () => { closeKebabMenu(); showTerminalPage(); }); $('btn-quick-python-open').addEventListener('click', () => { closeKebabMenu(); showQuickPythonPage(); }); $('btn-disconnect').addEventListener('click', disconnectAndCloseSession); $('btn-settings-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome')); $('btn-settings-libraries').addEventListener('click', showLibraries); $('btn-libraries-back').addEventListener('click', showSettings);
-  $('btn-execution-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome')); $('btn-terminal-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome')); $('btn-quick-python-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome'));
+  $('btn-execution-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome')); $('btn-terminal-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome')); $('btn-quick-python-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome')); $('btn-preview-back').addEventListener('click', closeFilePreview);
   $('welcome-open').addEventListener('click', () => toggleSidebar(true)); $('ft-refresh').addEventListener('click', async () => { await filetree.refresh(); toast(t('refreshed'), 'success'); });
   $('ft-upload').addEventListener('click', () => $('upload-input').click()); $('upload-input').addEventListener('change', uploadFiles);
   $('btn-execution-clear').addEventListener('click', clearExecution); $('btn-terminal-clear').addEventListener('click', () => terminal.clear()); $('btn-quick-python-clear').addEventListener('click', clearQuickPython);

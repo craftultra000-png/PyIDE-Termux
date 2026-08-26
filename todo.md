@@ -63,6 +63,14 @@
 - [x] Verify the Termux-supported Matplotlib package path and update the library guidance with the correct command.
 - [x] Test live Terminal output on desktop and a 390 px phone viewport, run regressions, and publish the verified fix.
 
+## Safe file previews and inline execution charts
+
+- [x] Classify text, image, and binary or unknown files before opening them, preventing large binary content from entering the editor.
+- [x] Add an image viewer inside the PyIDE workspace with a safe return path to the file list or editor.
+- [x] Detect new image artifacts written by a running Python file and render them inline in Execution, starting with Matplotlib `savefig()` output.
+- [x] Keep the artifact flow generic for image-producing libraries rather than binding it only to Matplotlib.
+- [x] Verify text files, images, ZIP or unknown binaries, and generated charts on desktop and a 390 px phone viewport, then publish the update.
+
 ## Execution input focus recovery
 
 - [x] Restore reliable Android keyboard input when a running Python file reaches `input()` in Execution.

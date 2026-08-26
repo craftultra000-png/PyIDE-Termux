@@ -17,6 +17,7 @@ from config import PYTHON_BIN, RUN_TIMEOUT, TERMUX_HOME
 
 _SESSIONS: dict[str, "PythonSession"] = {}
 _SESSIONS_LOCK = threading.Lock()
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 
 
 def _close_session(session: "PythonSession") -> None:
@@ -37,6 +38,8 @@ class PythonSession:
                 raise ValueError("A Python file or command is required")
             command = [PYTHON_BIN, "-u", path]
             cwd = cwd or os.path.dirname(path)
+        self.artifact_dir = cwd or TERMUX_HOME
+        self._known_images = self._image_signatures()
         self.process = subprocess.Popen(
             command,
             stdin=subprocess.PIPE,
@@ -49,6 +52,29 @@ class PythonSession:
         self.last_activity = self.started_at
         self._pending = bytearray()
         os.set_blocking(self.process.stdout.fileno(), False)
+
+    def _image_signatures(self) -> dict[str, tuple[int, int]]:
+        """Map raster images in the run directory to their mtime and size."""
+        images = {}
+        try:
+            for entry in os.scandir(self.artifact_dir):
+                if not entry.is_file() or os.path.splitext(entry.name)[1].lower() not in IMAGE_EXTENSIONS:
+                    continue
+                stat = entry.stat()
+                images[entry.path] = (stat.st_mtime_ns, stat.st_size)
+        except OSError:
+            pass
+        return images
+
+    def _new_images(self) -> list[dict]:
+        current = self._image_signatures()
+        artifacts = [
+            {"path": path, "name": os.path.basename(path), "size": signature[1]}
+            for path, signature in current.items()
+            if self._known_images.get(path) != signature
+        ]
+        self._known_images = current
+        return sorted(artifacts, key=lambda artifact: artifact["name"].casefold())
 
     def _drain(self, wait_seconds: float = 0.0) -> str:
         """Collect every byte currently available, including input() prompts."""
@@ -83,6 +109,7 @@ class PythonSession:
             "output": output,
             "done": done,
             "returncode": returncode,
+            "artifacts": self._new_images(),
         }
 
     def send(self, value: str) -> dict:

@@ -89,6 +89,29 @@ class PythonHandlerTests(unittest.TestCase):
 
         self.assertTrue(stopped["stopped"])
 
+    def test_file_session_reports_new_raster_image_artifact(self):
+        with tempfile.TemporaryDirectory() as workspace:
+            path = os.path.join(workspace, "make_chart.py")
+            with open(path, "w", encoding="utf-8") as script:
+                script.write(
+                    "from pathlib import Path\n"
+                    "Path('chart.png').write_bytes(b'\\x89PNG\\r\\n\\x1a\\nchart')\n"
+                    "print('chart-ready', flush=True)\n"
+                    "import time\ntime.sleep(0.15)\n"
+                )
+            started = start_file_session(path)
+            artifacts = list(started.get("artifacts", []))
+            result = started
+            for _ in range(8):
+                if result.get("done"):
+                    break
+                time.sleep(0.05)
+                result = poll_session(started["session"])
+                artifacts.extend(result.get("artifacts", []))
+
+        self.assertTrue(result["done"])
+        self.assertIn("chart.png", [artifact["name"] for artifact in artifacts])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
