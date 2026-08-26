@@ -48,7 +48,6 @@ def run_command(cmd: str, cwd: str = None) -> dict:
             shell=True,
             capture_output=True,
             text=True,
-            timeout=30,
             cwd=work_dir,
             env={**os.environ, "TERM": "xterm-256color"},
         )
@@ -57,7 +56,5 @@ def run_command(cmd: str, cwd: str = None) -> dict:
             "stderr":     result.stderr,
             "returncode": result.returncode,
         }
-    except subprocess.TimeoutExpired:
-        return {"error": "Command timed out (30 s)", "returncode": -1}
     except Exception as exc:
         return {"error": str(exc), "returncode": -1}

@@ -17,7 +17,7 @@ import os
 import json
 import logging
 import urllib.parse
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from email.parser import BytesParser
 from email.policy import HTTP
 
@@ -410,7 +410,9 @@ def ensure_projects_dir():
 
 def main():
     ensure_projects_dir()
-    server = HTTPServer((config.HOST, config.PORT), IDEHandler)
+    # Package installation can legitimately take longer than a short request.
+    # Keep serving the editor and its session polls while a Terminal command runs.
+    server = ThreadingHTTPServer((config.HOST, config.PORT), IDEHandler)
     log.info("=" * 60)
     log.info("  PyIDE-Termux running at http://localhost:%d", config.PORT)
     log.info("  Press Ctrl+C to stop")

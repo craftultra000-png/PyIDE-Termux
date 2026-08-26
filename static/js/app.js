@@ -40,7 +40,6 @@ const state = {
   quickInputRow: null,
   quickInput: null,
   packages: [],
-  settingsTab: 'general',
 };
 
 const savedPreferences = JSON.parse(localStorage.getItem('pyide.settings') || '{}');
@@ -143,7 +142,7 @@ function updateToolbarContext() {
   const view = state.workspaceView || 'welcome';
   const display = $('current-path-display');
   const fileView = (view === 'editor' || view === 'execution') && state.currentFile;
-  const labels = { terminal: t('terminal'), quick: t('quickPython'), settings: t('settings') };
+  const labels = { terminal: t('terminal'), quick: t('quickPython'), settings: t('settings'), libraries: t('installedLibraries') };
   const label = fileView ? state.currentFile.split('/').pop() : labels[view];
   display.hidden = !label;
   if (label) display.removeAttribute('data-i18n');
@@ -159,17 +158,19 @@ function setWorkspaceView(view) {
   if (view !== 'quick' && state.quickSession) void stopQuickPythonSession();
   state.workspaceView = view;
   const showSettings = view === 'settings';
+  const showLibraries = view === 'libraries';
   const showEditor = view === 'editor';
   const showExecution = view === 'execution';
   const showTerminal = view === 'terminal';
   const showQuickPython = view === 'quick';
   $('settings-page').classList.toggle('hidden', !showSettings);
+  $('libraries-page').classList.toggle('hidden', !showLibraries);
   $('editor-container').classList.toggle('hidden', !showEditor);
   $('execution-page').classList.toggle('hidden', !showExecution);
   $('terminal-page').classList.toggle('hidden', !showTerminal);
   $('quick-python-page').classList.toggle('hidden', !showQuickPython);
   $('welcome-screen').classList.toggle('hidden', view !== 'welcome');
-  $('statusbar').classList.toggle('hidden', showSettings || showExecution || showTerminal || showQuickPython);
+  $('statusbar').classList.toggle('hidden', showSettings || showLibraries || showExecution || showTerminal || showQuickPython);
   if (!showEditor) $('findbar').classList.add('hidden');
   updateToolbarContext();
 }
@@ -573,12 +574,15 @@ function resetOpenFile() {
   updateSaveStatus();
 }
 
-function showSettings({ focusPackages = false } = {}) {
+function showSettings() {
   setWorkspaceView('settings');
   hideSidebar();
-  activateSettingsTab(focusPackages ? 'libraries' : state.settingsTab);
+}
+
+function showLibraries() {
+  setWorkspaceView('libraries');
+  hideSidebar();
   loadPackageList();
-  if (focusPackages) requestAnimationFrame(() => $('pkg-name').focus());
 }
 
 function sidebarIsOpen() {
@@ -638,11 +642,8 @@ async function loadPackageList() {
 
 function renderPackageList() {
   const list = $('pkg-list');
-  const query = ($('package-filter')?.value || '').trim().toLowerCase();
-  const packages = state.packages.filter(pkg => pkg.name.toLowerCase().includes(query));
-  $('settings-package-count').textContent = state.packages.length ? `(${state.packages.length})` : '';
-  if (!packages.length) { list.innerHTML = `<div class="pkg-loading">${query ? t('noMatchingPackages') : '—'}</div>`; return; }
-  list.replaceChildren(...packages.map(pkg => {
+  if (!state.packages.length) { list.innerHTML = '<div class="pkg-loading">—</div>'; return; }
+  list.replaceChildren(...state.packages.map(pkg => {
     const row = document.createElement('div');
     row.className = 'pkg-item';
     row.innerHTML = `<span>${pkg.name}</span><span class="pkg-version">${pkg.version}</span>`;
@@ -733,45 +734,6 @@ function prepareQuickPythonInput() {
   state.quickInput = input;
 }
 
-function prepareSettingsTabs() {
-  const grid = document.querySelector('.settings-grid');
-  const libraryCard = $('pkg-list').closest('.settings-card');
-  const tabs = document.createElement('nav');
-  tabs.className = 'settings-tabs';
-  tabs.innerHTML = '<button class="settings-tab active" data-settings-tab="general" type="button" data-i18n="generalSettings">General settings</button><button class="settings-tab" data-settings-tab="libraries" type="button"><span data-i18n="libraries">Libraries</span> <span id="settings-package-count"></span></button>';
-  grid.before(tabs);
-  const tools = document.createElement('div');
-  tools.className = 'library-tools';
-  tools.innerHTML = '<input id="package-filter" class="pkg-input" data-i18n-placeholder="searchPackages" placeholder="Search installed packages" type="search"/><button class="btn-secondary" id="btn-pkg-refresh" data-i18n="refreshList" type="button">Refresh list</button>';
-  libraryCard.querySelector('.pkg-list-header').before(tools);
-  tabs.addEventListener('click', event => { const tab = event.target.closest('.settings-tab'); if (tab) activateSettingsTab(tab.dataset.settingsTab); });
-  $('package-filter').addEventListener('input', renderPackageList);
-  $('btn-pkg-refresh').addEventListener('click', loadPackageList);
-}
-
-function activateSettingsTab(tab) {
-  state.settingsTab = tab === 'libraries' ? 'libraries' : 'general';
-  const libraryCard = $('pkg-list').closest('.settings-card');
-  document.querySelectorAll('.settings-grid > .settings-card').forEach(card => { card.hidden = state.settingsTab === 'libraries' ? card !== libraryCard : card === libraryCard; });
-  document.querySelector('.settings-grid').classList.toggle('libraries-active', state.settingsTab === 'libraries');
-  document.querySelectorAll('.settings-tab').forEach(button => button.classList.toggle('active', button.dataset.settingsTab === state.settingsTab));
-  if (state.settingsTab === 'libraries') loadPackageList();
-}
-
-async function installPackage() {
-  const packageName = $('pkg-name').value.trim();
-  const manager = document.querySelector('input[name="mgr"]:checked')?.value || 'auto';
-  if (!packageName) return;
-  showTerminalPage();
-  terminal.printInfo(`${t('install')} ${packageName} (${manager})…`);
-  const data = await apiPost('/api/install', { package: packageName, manager });
-  if (data.error) return terminal.printErr(data.error);
-  terminal.printOut(data.stdout);
-  terminal.printErr(data.stderr);
-  $('pkg-name').value = '';
-  loadPackageList();
-}
-
 function openFind(focusReplace = false) {
   if (!state.currentFile) return toast(t('openFileFirst'), 'error');
   setWorkspaceView('editor');
@@ -822,7 +784,7 @@ function configureCommandPalette() {
     { label: 'Find and replace', shortcut: 'Ctrl+F', run: openFind },
     { label: 'Browse files', run: () => toggleSidebar(true) },
     { label: 'Open settings', run: showSettings },
-    { label: 'Install package', run: () => showSettings({ focusPackages: true }) },
+    { label: 'Installed libraries', run: showLibraries },
     { label: 'Toggle auto save', run: () => { settings.autoSave = !settings.autoSave; $('set-auto-save').checked = settings.autoSave; persistSettings(); } },
     { label: 'Open terminal', shortcut: 'Ctrl+`', run: showTerminalPage },
     { label: 'Quick Python', run: showQuickPythonPage },
@@ -867,7 +829,7 @@ function bindEvents() {
   $('new-file-name').addEventListener('keydown', event => { if (event.key === 'Enter') createFile(); }); $('new-folder-name').addEventListener('keydown', event => { if (event.key === 'Enter') createFolder(); });
   $('btn-save').addEventListener('click', () => { closeKebabMenu(); saveFile(); }); $('btn-run').addEventListener('click', runCurrentFile);
   $('btn-command').addEventListener('click', () => { closeKebabMenu(); commandPalette.open(); }); $('btn-sidebar-toggle').addEventListener('click', () => toggleSidebar()); $('btn-menu-files').addEventListener('click', () => { closeKebabMenu(); toggleSidebar(true); }); $('btn-sidebar-close').addEventListener('click', hideSidebar); $('sidebar-backdrop').addEventListener('click', hideSidebar);
-  $('btn-settings-open').addEventListener('click', () => { closeKebabMenu(); showSettings(); }); $('btn-terminal-open').addEventListener('click', () => { closeKebabMenu(); showTerminalPage(); }); $('btn-quick-python-open').addEventListener('click', () => { closeKebabMenu(); showQuickPythonPage(); }); $('btn-disconnect').addEventListener('click', disconnectAndCloseSession); $('btn-settings-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome'));
+  $('btn-settings-open').addEventListener('click', () => { closeKebabMenu(); showSettings(); }); $('btn-terminal-open').addEventListener('click', () => { closeKebabMenu(); showTerminalPage(); }); $('btn-quick-python-open').addEventListener('click', () => { closeKebabMenu(); showQuickPythonPage(); }); $('btn-disconnect').addEventListener('click', disconnectAndCloseSession); $('btn-settings-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome')); $('btn-settings-libraries').addEventListener('click', showLibraries); $('btn-libraries-back').addEventListener('click', showSettings);
   $('btn-execution-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome')); $('btn-terminal-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome')); $('btn-quick-python-back').addEventListener('click', () => state.currentFile ? setWorkspaceView('editor') : setWorkspaceView('welcome'));
   $('welcome-open').addEventListener('click', () => toggleSidebar(true)); $('ft-refresh').addEventListener('click', async () => { await filetree.refresh(); toast(t('refreshed'), 'success'); });
   $('ft-upload').addEventListener('click', () => $('upload-input').click()); $('upload-input').addEventListener('change', uploadFiles);
@@ -895,7 +857,13 @@ function bindSettings() {
   $('theme-options').addEventListener('click', event => { const choice = event.target.closest('.theme-choice'); if (!choice) return; settings.theme = choice.dataset.theme; applyTheme(); persistSettings(); });
   bindDropdown('language-dropdown', 'set-language-trigger', 'set-language-menu', value => { settings.locale = value; persistSettings(); applyLocale(); });
   bindDropdown('tab-size-dropdown', 'set-tab-size-trigger', 'set-tab-size-menu', value => { settings.tabSize = +value; $('set-tab-size-value').textContent = value; editor.setTabSize(settings.tabSize); persistSettings(); });
-  $('btn-pkg-install').addEventListener('click', installPackage); $('pkg-name').addEventListener('keydown', event => { if (event.key === 'Enter') installPackage(); });
+  document.querySelectorAll('[data-settings-detail]').forEach(button => button.addEventListener('click', () => {
+    const detail = $(button.dataset.settingsDetail);
+    const opening = detail.classList.contains('hidden');
+    document.querySelectorAll('.settings-detail').forEach(item => item.classList.add('hidden'));
+    document.querySelectorAll('[data-settings-detail]').forEach(item => item.setAttribute('aria-expanded', 'false'));
+    if (opening) { detail.classList.remove('hidden'); button.setAttribute('aria-expanded', 'true'); }
+  }));
 }
 
 function bindFind() {
@@ -920,7 +888,7 @@ function bindShortcuts() {
 }
 
 async function init() {
-  prepareRuntimeInput(); prepareQuickPythonInput(); prepareSettingsTabs(); applySettings(); bindEvents(); configureCommandPalette();
+  prepareRuntimeInput(); prepareQuickPythonInput(); applySettings(); bindEvents(); configureCommandPalette();
   try { const response = await apiPost('/api/cmd', { cmd: 'python --version' }); $('si-python').removeAttribute('data-i18n'); $('si-python').textContent = (response.stdout || response.stderr || '').trim() || '—'; } catch { $('si-python').textContent = '—'; }
   await loadRoots(); terminal.printInfo('PyIDE Termux Pro · Ready');
 }

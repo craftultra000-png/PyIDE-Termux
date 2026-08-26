@@ -48,6 +48,14 @@
 - [x] Hide Run outside the editor and show the current tool name beside Files when Execution, Terminal, or Quick Python is active.
 - [x] Verify desktop and 390 px phone layouts, interactions, and regressions, then publish the update.
 
+## Terminal package commands and Acode-style settings
+
+- [x] Pass full shell commands such as `pip install matplotlib` and `pkg install <package>` to Terminal without treating the complete command as one package name.
+- [x] Remove the fixed 30-second Terminal command timeout while retaining explicit session termination when the user leaves Terminal.
+- [x] Replace the card-based Settings landing page with a grouped Acode-style settings list.
+- [x] Remove direct library-install controls and add a read-only installed-libraries page with clear Terminal installation guidance.
+- [x] Verify Terminal installation commands, Settings, and the library page on desktop and a 390 px phone viewport, then publish the update.
+
 ## Execution input focus recovery
 
 - [x] Restore reliable Android keyboard input when a running Python file reaches `input()` in Execution.
