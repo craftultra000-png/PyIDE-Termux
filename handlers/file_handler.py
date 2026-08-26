@@ -18,6 +18,9 @@ IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 ARCHIVE_EXTENSIONS = {".zip", ".tar", ".gz", ".bz2", ".xz", ".7z", ".rar", ".apk", ".whl"}
 BINARY_EXTENSIONS = ARCHIVE_EXTENSIONS | {".pdf", ".mp3", ".wav", ".mp4", ".mkv", ".avi", ".so", ".dll", ".exe", ".bin", ".db", ".sqlite", ".pyc", ".ttf", ".otf"}
 MAX_EDITOR_BYTES = 1_500_000
+MAX_SEARCH_RESULTS = 250
+MAX_SEARCH_FILES = 1_000
+PROJECT_CONFIG_NAME = ".pyide.json"
 
 
 # ─── Security ─────────────────────────────────────────────────────────────────
@@ -308,3 +311,132 @@ def preview_info(path: str) -> dict:
     if info["kind"] != "image":
         return {"error": "This file cannot be previewed as an image"}
     return {"ok": True, **info}
+
+
+# ─── Project Search and Run Settings ──────────────────────────────────────────
+
+def search_project(root: str, query: str) -> dict:
+    """Search readable project files, returning bounded line-level matches."""
+    real_root, err = _safe(root)
+    if err:
+        return {"error": err}
+    if not os.path.isdir(real_root):
+        return {"error": "Project root is not a directory"}
+    needle = str(query or "").strip()
+    if not needle:
+        return {"error": "Search query is required"}
+    if len(needle) > 240:
+        return {"error": "Search query is too long"}
+
+    results = []
+    files_checked = 0
+    folded = needle.casefold()
+    try:
+        for current, dirs, names in os.walk(real_root, followlinks=False):
+            dirs[:] = [name for name in dirs if not name.startswith(".")]
+            for name in names:
+                if name.startswith("."):
+                    continue
+                files_checked += 1
+                if files_checked > MAX_SEARCH_FILES:
+                    return {"root": real_root, "query": needle, "results": results, "truncated": True}
+                candidate = os.path.join(current, name)
+                real_file, file_err = _safe(candidate)
+                if file_err or not real_file or not os.path.isfile(real_file):
+                    continue
+                if _file_kind(real_file)["kind"] != "text":
+                    continue
+                try:
+                    with open(real_file, "r", encoding="utf-8", errors="strict") as fh:
+                        for line_number, line in enumerate(fh, start=1):
+                            if folded not in line.casefold():
+                                continue
+                            results.append({
+                                "path": real_file,
+                                "relative": os.path.relpath(real_file, real_root),
+                                "line": line_number,
+                                "preview": line.strip()[:240],
+                            })
+                            if len(results) >= MAX_SEARCH_RESULTS:
+                                return {"root": real_root, "query": needle, "results": results, "truncated": True}
+                except (OSError, UnicodeDecodeError):
+                    continue
+    except OSError as exc:
+        return {"error": str(exc)}
+    return {"root": real_root, "query": needle, "results": results, "truncated": False}
+
+
+def _inside_project(path: str, root: str) -> bool:
+    try:
+        return os.path.commonpath([path, root]) == root
+    except ValueError:
+        return False
+
+
+def _normalise_project_config(root: str, entry="", args=None, cwd=".") -> tuple[dict | None, str | None]:
+    """Validate project-local run metadata and resolve executable paths."""
+    entry = str(entry or "").strip()
+    cwd = str(cwd or ".").strip() or "."
+    if os.path.isabs(entry) or os.path.isabs(cwd):
+        return None, "Project settings must use relative paths"
+    entry_path = os.path.realpath(os.path.join(root, entry)) if entry else ""
+    cwd_path = os.path.realpath(os.path.join(root, cwd))
+    if (entry and not _inside_project(entry_path, root)) or not _inside_project(cwd_path, root):
+        return None, "Project settings must remain inside the selected project"
+    if not os.path.isdir(cwd_path):
+        return None, "Working directory does not exist"
+    if entry and not os.path.isfile(entry_path):
+        return None, "Entry file does not exist"
+    if not isinstance(args, list) or any(not isinstance(arg, str) or len(arg) > 500 for arg in args) or len(args) > 64:
+        return None, "Run arguments are invalid"
+    return {
+        "entry": entry,
+        "args": args,
+        "cwd": cwd,
+        "entryPath": entry_path or None,
+        "cwdPath": cwd_path,
+    }, None
+
+
+def read_project_config(root: str) -> dict:
+    """Read a hidden project run configuration without exposing it in the explorer."""
+    real_root, err = _safe(root)
+    if err:
+        return {"error": err}
+    if not os.path.isdir(real_root):
+        return {"error": "Project root is not a directory"}
+    config_path = os.path.join(real_root, PROJECT_CONFIG_NAME)
+    raw = {"entry": "", "args": [], "cwd": "."}
+    if os.path.isfile(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as fh:
+                loaded = json.load(fh)
+            if not isinstance(loaded, dict):
+                return {"error": "Project settings must be a JSON object"}
+            raw.update({key: loaded.get(key, raw[key]) for key in raw})
+        except (OSError, json.JSONDecodeError) as exc:
+            return {"error": f"Unable to read project settings: {exc}"}
+    config, config_error = _normalise_project_config(real_root, **raw)
+    if config_error:
+        return {"error": config_error}
+    return {"root": real_root, "config": config}
+
+
+def write_project_config(root: str, entry="", args=None, cwd=".") -> dict:
+    """Save validated project-local run metadata into a hidden configuration file."""
+    real_root, err = _safe(root)
+    if err:
+        return {"error": err}
+    if not os.path.isdir(real_root):
+        return {"error": "Project root is not a directory"}
+    config, config_error = _normalise_project_config(real_root, entry, args or [], cwd)
+    if config_error:
+        return {"error": config_error}
+    try:
+        config_path = os.path.join(real_root, PROJECT_CONFIG_NAME)
+        with open(config_path, "w", encoding="utf-8") as fh:
+            json.dump({"entry": config["entry"], "args": config["args"], "cwd": config["cwd"]}, fh, ensure_ascii=False, indent=2)
+            fh.write("\n")
+        return {"ok": True, "root": real_root, "config": config}
+    except OSError as exc:
+        return {"error": str(exc)}

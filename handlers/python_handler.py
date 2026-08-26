@@ -143,13 +143,14 @@ def _cleanup_sessions() -> None:
                 _SESSIONS.pop(session_id, None)
 
 
-def start_file_session(path: str) -> dict:
+def start_file_session(path: str, args: list[str] | None = None, cwd: str | None = None) -> dict:
     """Start a program immediately and return its early output/prompt."""
     if not os.path.isfile(path):
         return {"error": f"File not found: {path}"}
     _cleanup_sessions()
     try:
-        session = PythonSession(path)
+        command = [PYTHON_BIN, "-u", path, *(args or [])]
+        session = PythonSession(command=command, cwd=cwd or os.path.dirname(path))
         session_id = uuid.uuid4().hex
         with _SESSIONS_LOCK:
             _SESSIONS[session_id] = session

@@ -112,6 +112,29 @@ class PythonHandlerTests(unittest.TestCase):
         self.assertTrue(result["done"])
         self.assertIn("chart.png", [artifact["name"] for artifact in artifacts])
 
+    def test_file_session_uses_arguments_and_explicit_working_directory(self):
+        with tempfile.TemporaryDirectory() as workspace:
+            script_dir = os.path.join(workspace, "src")
+            working_dir = os.path.join(workspace, "runtime")
+            os.makedirs(script_dir)
+            os.makedirs(working_dir)
+            path = os.path.join(script_dir, "main.py")
+            with open(path, "w", encoding="utf-8") as script:
+                script.write("import os, sys\nprint(os.getcwd())\nprint('|'.join(sys.argv[1:]))\n")
+            started = start_file_session(path, args=["--name", "Ada"], cwd=working_dir)
+            output = started["output"]
+            result = started
+            for _ in range(8):
+                if result.get("done"):
+                    break
+                time.sleep(0.05)
+                result = poll_session(started["session"])
+                output += result["output"]
+
+        self.assertTrue(result["done"])
+        self.assertIn(working_dir, output)
+        self.assertIn("--name|Ada", output)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

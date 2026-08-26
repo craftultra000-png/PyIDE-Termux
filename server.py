@@ -28,7 +28,8 @@ import config
 from handlers.file_handler    import (list_dir, read_file, write_file,
                                        delete_path, create_folder,
                                        move_path, copy_path,
-                                       upload_file, download_info, preview_info)
+                                       upload_file, download_info, preview_info,
+                                       search_project, read_project_config, write_project_config)
 from handlers.python_handler  import (run_file, run_snippet, start_file_session,
                                       start_repl_session, send_session_input,
                                       poll_session, stop_session)
@@ -203,6 +204,12 @@ class IDEHandler(BaseHTTPRequestHandler):
             ]
             self._send_json({"roots": roots})
 
+        elif path == "/api/project/search":
+            self._send_json(search_project(qs.get("root", ""), qs.get("query", "")))
+
+        elif path == "/api/project/config":
+            self._send_json(read_project_config(qs.get("root", "")))
+
         else:
             self._send_error_json("Unknown endpoint", 404)
 
@@ -242,6 +249,8 @@ class IDEHandler(BaseHTTPRequestHandler):
             self._api_install()
         elif path == "/api/upload":
             self._api_upload()
+        elif path == "/api/project/config":
+            self._api_project_config()
         else:
             self._send_error_json("Unknown endpoint", 404)
 
@@ -308,7 +317,23 @@ class IDEHandler(BaseHTTPRequestHandler):
         if body is None or not body.get("path"):
             self._send_error_json("Provide a file path")
             return
-        self._send_json(start_file_session(body["path"]))
+        args = body.get("args", [])
+        cwd = body.get("cwd")
+        if not isinstance(args, list) or any(not isinstance(arg, str) for arg in args):
+            self._send_error_json("Run arguments must be a list of strings")
+            return
+        self._send_json(start_file_session(body["path"], args=args, cwd=cwd))
+
+    def _api_project_config(self):
+        body = self._read_json_body()
+        if body is None or not body.get("root"):
+            self._send_error_json("Provide a project root")
+            return
+        args = body.get("args", [])
+        if not isinstance(args, list):
+            self._send_error_json("Run arguments must be a list of strings")
+            return
+        self._send_json(write_project_config(body["root"], body.get("entry", ""), args, body.get("cwd", ".")))
 
     def _api_run_session_input(self):
         body = self._read_json_body()

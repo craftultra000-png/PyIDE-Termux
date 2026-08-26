@@ -17,6 +17,21 @@ export const I18N = {
   hi: { noFile:'कोई फ़ाइल खुली नहीं है', run:'चलाएँ', newFile:'नई फ़ाइल', newFolder:'नया फ़ोल्डर', save:'सहेजें', settings:'सेटिंग्स', files:'फ़ाइलें', packages:'पैकेज', language:'भाषा', find:'खोजें और बदलें', replace:'बदलें', replaceAll:'सभी बदलें', cancel:'रद्द करें', create:'बनाएँ', delete:'हटाएँ', open:'खोलें', ready:'तैयार', chooseLocation:'सहेजने का स्थान चुनें', chooseThisFolder:'इस फ़ोल्डर का उपयोग करें', storageHint:'वर्कस्पेस चुनें और फ़ोल्डर खोलें' },
 };
 
+Object.assign(I18N.ar, {
+  projectSearch: 'بحث في المشروع', projectSearchHint: 'ابحث في ملفات المجلد المفتوح',
+  projectRun: 'تشغيل المشروع', runSettings: 'إعدادات التشغيل', projectRoot: 'مجلد المشروع',
+  entryFile: 'ملف التشغيل', runArguments: 'وسائط التشغيل', workingDirectory: 'مجلد العمل',
+  saveRunSettings: 'حفظ الإعدادات', searchResults: 'نتائج البحث', noSearchResults: 'لا توجد نتائج',
+  openTabs: 'الملفات المفتوحة', completionHint: 'إكمال Python محلي: اكتب حرفين أو اضغط Ctrl+Space',
+});
+Object.assign(I18N.en, {
+  projectSearch: 'Search project', projectSearchHint: 'Search files in the open folder',
+  projectRun: 'Run project', runSettings: 'Run settings', projectRoot: 'Project folder',
+  entryFile: 'Entry file', runArguments: 'Run arguments', workingDirectory: 'Working directory',
+  saveRunSettings: 'Save settings', searchResults: 'Search results', noSearchResults: 'No results found',
+  openTabs: 'Open files', completionHint: 'Local Python completion: type two letters or press Ctrl+Space',
+});
+
 const SETTINGS_FALLBACKS = {
   installedLibraries: 'Installed libraries',
   coreSettings: 'Core settings',

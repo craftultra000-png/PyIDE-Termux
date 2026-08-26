@@ -79,6 +79,35 @@ class FileHandlerTests(unittest.TestCase):
         self.assertTrue(preview['ok'])
         self.assertEqual(preview['kind'], 'image')
 
+    def test_search_project_skips_hidden_and_binary_files(self):
+        os.makedirs(os.path.join(self.root, 'src'))
+        with open(os.path.join(self.root, 'src', 'main.py'), 'w', encoding='utf-8') as file:
+            file.write('needle = 1\nprint(needle)\n')
+        with open(os.path.join(self.root, '.hidden.py'), 'w', encoding='utf-8') as file:
+            file.write('needle = 2\n')
+        with open(os.path.join(self.root, 'archive.zip'), 'wb') as file:
+            file.write(b'needle\x00')
+
+        result = file_handler.search_project(self.root, 'needle')
+
+        self.assertEqual([(item['relative'], item['line']) for item in result['results']], [('src/main.py', 1), ('src/main.py', 2)])
+        self.assertFalse(result['truncated'])
+
+    def test_reads_and_writes_project_run_settings(self):
+        os.makedirs(os.path.join(self.root, 'src'))
+        entry = os.path.join(self.root, 'src', 'main.py')
+        with open(entry, 'w', encoding='utf-8') as file:
+            file.write('print("ok")\n')
+
+        saved = file_handler.write_project_config(self.root, 'src/main.py', ['--name', 'Ada'], 'src')
+        loaded = file_handler.read_project_config(self.root)
+
+        self.assertTrue(saved['ok'])
+        self.assertEqual(loaded['config']['entry'], 'src/main.py')
+        self.assertEqual(loaded['config']['args'], ['--name', 'Ada'])
+        self.assertEqual(loaded['config']['cwd'], 'src')
+        self.assertEqual(loaded['config']['entryPath'], entry)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

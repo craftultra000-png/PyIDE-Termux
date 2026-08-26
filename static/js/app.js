@@ -11,12 +11,14 @@ import { applyTranslations, translate } from './core/i18n.js';
 import { isValidName, joinPath, parentPath } from './core/path-utils.js';
 import { LocationPicker } from './components/location-picker.js';
 import { CommandPalette } from './components/command-palette.js';
+import { PythonCompletion } from './components/python-completion.js';
 
 /** @param {string} id @returns {HTMLElement} */
 const $ = id => document.getElementById(id);
 
 const editorTextarea = $('editor-textarea');
 const editor = new Editor(editorTextarea, $('editor-gutter'), $('syntax-overlay'));
+const completion = new PythonCompletion(editorTextarea, $('completion-menu'));
 const terminal = new Terminal($('terminal-output'));
 
 const state = {
@@ -43,6 +45,10 @@ const state = {
   previewReturnView: 'welcome',
   runArtifacts: new Set(),
   packages: [],
+  tabs: [],
+  projectRoot: null,
+  projectConfig: null,
+  projectSearchTimer: null,
 };
 
 const savedPreferences = JSON.parse(localStorage.getItem('pyide.settings') || '{}');
@@ -91,8 +97,16 @@ function updateCursor() {
 
 function markDirty() {
   if (!state.currentFile) return;
+  const tab = activeTab();
+  if (tab) {
+    tab.content = editor.getValue();
+    tab.isDirty = true;
+    tab.selectionStart = editorTextarea.selectionStart;
+    tab.selectionEnd = editorTextarea.selectionEnd;
+  }
   state.isDirty = true;
   updateSaveStatus();
+  renderTabs();
   if (!settings.autoSave) return;
   clearTimeout(state.autoSaveTimer);
   state.autoSaveTimer = setTimeout(() => saveFile({ silent: true }), 2000);
@@ -182,23 +196,100 @@ function setWorkspaceView(view) {
   updateToolbarContext();
 }
 
+function activeTab() { return state.tabs.find(tab => tab.path === state.currentFile) || null; }
+
+function captureActiveTab() {
+  const tab = activeTab();
+  if (!tab) return;
+  tab.content = editor.getValue();
+  tab.isDirty = state.isDirty;
+  tab.selectionStart = editorTextarea.selectionStart;
+  tab.selectionEnd = editorTextarea.selectionEnd;
+}
+
+function renderTabs() {
+  const list = $('editor-tabs-list');
+  list.replaceChildren(...state.tabs.map(tab => {
+    const item = document.createElement('div');
+    item.className = `editor-tab${tab.path === state.currentFile ? ' active' : ''}`;
+    item.title = tab.path;
+    const name = document.createElement('button');
+    name.className = 'editor-tab-name';
+    name.type = 'button';
+    name.textContent = tab.name;
+    name.addEventListener('click', () => activateTab(tab.path));
+    item.append(name);
+    if (tab.isDirty) { const dirty = document.createElement('span'); dirty.className = 'editor-tab-dirty'; item.append(dirty); }
+    const close = document.createElement('button');
+    close.className = 'editor-tab-close';
+    close.type = 'button';
+    close.title = t('closeFile');
+    close.textContent = '×';
+    close.addEventListener('click', event => { event.stopPropagation(); void closeTab(tab.path); });
+    item.append(close);
+    return item;
+  }));
+}
+
+function activateTab(path, { focus = true } = {}) {
+  captureActiveTab();
+  const tab = state.tabs.find(item => item.path === path);
+  if (!tab) return;
+  state.currentFile = tab.path;
+  state.isDirty = tab.isDirty;
+  editor.setValue(tab.content);
+  const cursor = Math.min(tab.selectionStart ?? 0, editorTextarea.value.length);
+  const selectionEnd = Math.min(tab.selectionEnd ?? cursor, editorTextarea.value.length);
+  editorTextarea.setSelectionRange(cursor, selectionEnd);
+  completion.setEnabled(tab.path.toLowerCase().endsWith('.py'));
+  setWorkspaceView('editor');
+  $('status-file').removeAttribute('data-i18n');
+  $('status-file').textContent = tab.name;
+  filetree.setActive(tab.path);
+  updateSaveStatus();
+  updateCursor();
+  renderTabs();
+  if (focus) requestAnimationFrame(() => editor.focus());
+}
+
+async function saveTab(tab, { silent = false } = {}) {
+  if (!tab) return false;
+  if (tab.path === state.currentFile) captureActiveTab();
+  const data = await apiPost('/api/file', { path: tab.path, content: tab.content });
+  if (data.error) { if (!silent) toast(data.error, 'error'); return false; }
+  tab.isDirty = false;
+  if (tab.path === state.currentFile) { state.isDirty = false; updateSaveStatus(); }
+  renderTabs();
+  if (!silent) toast(t('saved'), 'success');
+  return true;
+}
+
+async function closeTab(path) {
+  const tab = state.tabs.find(item => item.path === path);
+  if (!tab) return;
+  if (tab.isDirty && !(await saveTab(tab, { silent: true }))) return;
+  const index = state.tabs.indexOf(tab);
+  state.tabs.splice(index, 1);
+  if (path === state.currentFile) {
+    const next = state.tabs[Math.max(0, index - 1)] || state.tabs[0];
+    if (next) activateTab(next.path);
+    else resetOpenFile();
+  }
+  renderTabs();
+  toast(t('fileClosed'), 'success');
+}
+
 /** @param {string} path */
 async function openFile(path) {
   try {
+    if (state.tabs.some(tab => tab.path === path)) { activateTab(path); hideSidebar(); return; }
     const data = await api(`/api/file?path=${encodeURIComponent(path)}`);
     if (data.error) return toast(data.error, 'error');
     if (data.kind === 'image' || data.kind === 'binary') return showFilePreview(data);
-    state.currentFile = data.path || path;
-    state.isDirty = false;
-    editor.setValue(data.content || '');
-    setWorkspaceView('editor');
-    $('status-file').removeAttribute('data-i18n');
-    $('status-file').textContent = state.currentFile.split('/').pop();
-    filetree.setActive(state.currentFile);
-    updateSaveStatus();
-    updateCursor();
+    const resolvedPath = data.path || path;
+    state.tabs.push({ path: resolvedPath, name: resolvedPath.split('/').pop(), content: data.content || '', isDirty: false, selectionStart: 0, selectionEnd: 0 });
+    activateTab(resolvedPath);
     hideSidebar();
-    requestAnimationFrame(() => editor.focus());
   } catch (error) {
     toast(error.message || t('loadingError'), 'error');
   }
@@ -246,29 +337,118 @@ function closeFilePreview() {
 
 /** @param {{ silent?: boolean }} [options] */
 async function saveFile({ silent = false } = {}) {
-  if (!state.currentFile) {
+  const tab = activeTab();
+  if (!tab) {
     if (!silent) toast(t('openFileFirst'), 'error');
     return false;
   }
-  const data = await apiPost('/api/file', { path: state.currentFile, content: editor.getValue() });
-  if (data.error) {
-    if (!silent) toast(data.error, 'error');
-    return false;
-  }
-  state.isDirty = false;
-  updateSaveStatus();
-  if (!silent) toast(t('saved'), 'success');
-  return true;
+  return saveTab(tab, { silent });
+}
+
+function getProjectRoot() { return filetree.getSelectedDirectory() || state.projectRoot || filetree.getRootPath() || state.roots[0]?.path || null; }
+
+function relativeProjectPath(path, root) {
+  return path && root && path.startsWith(`${root}/`) ? path.slice(root.length + 1) : '';
+}
+
+async function launchRun(path, args = [], cwd = null) {
+  if (!path) return toast(t('openFileFirst'), 'error');
+  const openTab = state.tabs.find(tab => tab.path === path);
+  if (openTab?.isDirty && !(await saveTab(openTab, { silent: true }))) return;
+  setWorkspaceView('execution');
+  $('execution-file-label').textContent = args.length ? `${path} ${args.join(' ')}` : path;
+  await stopExecutionSession();
+  $('output-content').innerHTML = `<div class="out-info">${t('run')}…</div>`;
+  handleRunSession(await apiPost('/api/run/session/start', { path, args, cwd }));
 }
 
 async function runCurrentFile() {
   if (!state.currentFile) return toast(t('openFileFirst'), 'error');
-  setWorkspaceView('execution');
-  $('execution-file-label').textContent = state.currentFile;
-  await saveFile({ silent: true });
-  await stopExecutionSession();
-  $('output-content').innerHTML = `<div class="out-info">${t('run')}…</div>`;
-  handleRunSession(await apiPost('/api/run/session/start', { path: state.currentFile }));
+  return launchRun(state.currentFile);
+}
+
+async function openRunSettings() {
+  const root = getProjectRoot();
+  if (!root) return toast(t('loadingError'), 'error');
+  const data = await api(`/api/project/config?root=${encodeURIComponent(root)}`);
+  if (data.error) return toast(data.error, 'error');
+  state.projectConfig = data.config;
+  $('run-settings-root').textContent = root;
+  $('run-config-entry').value = data.config.entry || relativeProjectPath(state.currentFile, root);
+  $('run-config-args').value = (data.config.args || []).join('\n');
+  $('run-config-cwd').value = data.config.cwd || '.';
+  openModal('modal-run-settings');
+  setTimeout(() => $('run-config-entry').focus(), 50);
+}
+
+async function saveProjectRunSettings() {
+  const root = getProjectRoot();
+  if (!root) return;
+  const entry = $('run-config-entry').value.trim();
+  const args = $('run-config-args').value.split('\n').map(item => item.trim()).filter(Boolean);
+  const cwd = $('run-config-cwd').value.trim() || '.';
+  const data = await apiPost('/api/project/config', { root, entry, args, cwd });
+  if (data.error) return toast(data.error, 'error');
+  state.projectConfig = data.config;
+  closeModal('modal-run-settings');
+  toast(t('saved'), 'success');
+}
+
+async function runProject() {
+  const root = getProjectRoot();
+  if (!root) return toast(t('loadingError'), 'error');
+  const data = await api(`/api/project/config?root=${encodeURIComponent(root)}`);
+  if (data.error) return toast(data.error, 'error');
+  state.projectConfig = data.config;
+  const entryPath = data.config.entryPath || state.currentFile;
+  if (!entryPath) return openRunSettings();
+  const cwdPath = data.config.entryPath ? data.config.cwdPath : null;
+  return launchRun(entryPath, data.config.entryPath ? data.config.args : [], cwdPath);
+}
+
+function goToLine(lineNumber) {
+  const lines = editorTextarea.value.split('\n');
+  const line = Math.max(1, Math.min(Number(lineNumber) || 1, lines.length));
+  const start = lines.slice(0, line - 1).reduce((total, item) => total + item.length + 1, 0);
+  const end = start + lines[line - 1].length;
+  editorTextarea.focus();
+  editorTextarea.setSelectionRange(start, end);
+  editorTextarea.scrollTop = Math.max(0, (line - 3) * (settings.fontSize * 1.6));
+  updateCursor();
+}
+
+function renderProjectSearchResults(data) {
+  const list = $('project-search-results');
+  if (data.error) { list.textContent = data.error; return; }
+  if (!data.results?.length) { list.textContent = t('noSearchResults'); return; }
+  list.replaceChildren(...data.results.map(result => {
+    const item = document.createElement('button');
+    item.className = 'project-search-result';
+    item.type = 'button';
+    const path = document.createElement('strong'); path.textContent = `${result.relative}:${result.line}`;
+    const preview = document.createElement('span'); preview.textContent = result.preview || '…';
+    item.append(path, preview);
+    item.addEventListener('click', async () => { closeModal('modal-project-search'); await openFile(result.path); goToLine(result.line); });
+    return item;
+  }));
+}
+
+async function searchProject() {
+  const root = getProjectRoot();
+  const query = $('project-search-input').value.trim();
+  if (!root || !query) { $('project-search-results').replaceChildren(); return; }
+  const data = await api(`/api/project/search?root=${encodeURIComponent(root)}&query=${encodeURIComponent(query)}`);
+  renderProjectSearchResults(data);
+}
+
+function openProjectSearch() {
+  const root = getProjectRoot();
+  if (!root) return toast(t('loadingError'), 'error');
+  $('project-search-root').textContent = root;
+  $('project-search-input').value = '';
+  $('project-search-results').replaceChildren();
+  openModal('modal-project-search');
+  setTimeout(() => $('project-search-input').focus(), 50);
 }
 
 function appendRunOutput(text, className = 'out-stdout') {
@@ -653,6 +833,9 @@ function openDeleteModal(entry) {
 function resetOpenFile() {
   state.currentFile = null;
   state.isDirty = false;
+  completion.setEnabled(false);
+  editor.setValue('');
+  filetree.setActive(null);
   setWorkspaceView('welcome');
   $('status-file').setAttribute('data-i18n', 'noFile');
   $('status-file').textContent = t('noFile');
@@ -662,14 +845,9 @@ function resetOpenFile() {
 async function closeCurrentFile() {
   closeKebabMenu();
   if (!state.currentFile && !state.previewFile) return toast(t('noFile'), 'info');
-  if (state.currentFile && state.isDirty && !(await saveFile({ silent: true }))) return;
+  if (state.previewFile && !state.currentFile) { state.previewFile = null; state.previewReturnView = 'welcome'; setWorkspaceView('welcome'); return toast(t('fileClosed'), 'success'); }
   clearTimeout(state.autoSaveTimer);
-  state.previewFile = null;
-  state.previewReturnView = 'welcome';
-  editor.setValue('');
-  filetree.setActive(null);
-  resetOpenFile();
-  toast(t('fileClosed'), 'success');
+  await closeTab(state.currentFile);
 }
 
 function showSettings() {
@@ -721,6 +899,8 @@ async function loadRoots() {
       rootBar.querySelectorAll('.root-chip').forEach(item => item.classList.remove('active'));
       chip.classList.add('active');
       $('ft-cwd-label').textContent = root.path;
+      state.projectRoot = root.path;
+      state.projectConfig = null;
       await filetree.loadRoot(root.path);
       terminal.setCwd(root.path);
     });
@@ -879,6 +1059,9 @@ function configureCommandPalette() {
     { label: 'New file', shortcut: 'Ctrl+N', run: openNewFileModal },
     { label: 'Save', shortcut: 'Ctrl+S', run: saveFile },
     { label: 'Run file', shortcut: 'F5', run: runCurrentFile },
+    { label: 'Run project', run: runProject },
+    { label: 'Project search', shortcut: 'Ctrl+Shift+F', run: openProjectSearch },
+    { label: 'Run settings', run: openRunSettings },
     { label: 'Find and replace', shortcut: 'Ctrl+F', run: openFind },
     { label: 'Browse files', run: () => toggleSidebar(true) },
     { label: 'Open settings', run: showSettings },
@@ -923,9 +1106,13 @@ function bindEvents() {
 
   $('btn-kebab-toggle').addEventListener('click', event => { event.stopPropagation(); toggleKebabMenu(); });
   $('btn-new').addEventListener('click', () => { closeKebabMenu(); openNewFileModal(); }); $('btn-close-file').addEventListener('click', closeCurrentFile); $('welcome-new').addEventListener('click', openNewFileModal);
+  $('btn-project-search').addEventListener('click', () => { closeKebabMenu(); openProjectSearch(); }); $('btn-project-run').addEventListener('click', () => { closeKebabMenu(); void runProject(); }); $('btn-run-settings').addEventListener('click', () => { closeKebabMenu(); void openRunSettings(); });
   $('ft-new-file').addEventListener('click', openNewFileModal); $('ft-new-folder').addEventListener('click', openNewFolderModal);
   $('new-file-location').addEventListener('click', () => openLocationPicker('file')); $('new-folder-location').addEventListener('click', () => openLocationPicker('folder'));
   $('btn-new-file-confirm').addEventListener('click', createFile); $('btn-new-folder-confirm').addEventListener('click', createFolder);
+  $('btn-save-run-settings').addEventListener('click', saveProjectRunSettings);
+  $('project-search-input').addEventListener('input', () => { clearTimeout(state.projectSearchTimer); state.projectSearchTimer = setTimeout(searchProject, 180); });
+  $('project-search-input').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); void searchProject(); } });
   $('new-file-name').addEventListener('keydown', event => { if (event.key === 'Enter') createFile(); }); $('new-folder-name').addEventListener('keydown', event => { if (event.key === 'Enter') createFolder(); });
   $('btn-save').addEventListener('click', () => { closeKebabMenu(); saveFile(); }); $('btn-run').addEventListener('click', runCurrentFile);
   $('btn-command').addEventListener('click', () => { closeKebabMenu(); commandPalette.open(); }); $('btn-sidebar-toggle').addEventListener('click', () => toggleSidebar()); $('btn-menu-files').addEventListener('click', () => { closeKebabMenu(); toggleSidebar(true); }); $('btn-sidebar-close').addEventListener('click', hideSidebar); $('sidebar-backdrop').addEventListener('click', hideSidebar);
@@ -981,6 +1168,8 @@ function bindShortcuts() {
     if (control && key === 'f') { event.preventDefault(); openFind(); }
     if (control && key === 'h') { event.preventDefault(); openFind(true); }
     if (control && key === 'p') { event.preventDefault(); commandPalette.open(); }
+    if (control && event.shiftKey && key === 'f') { event.preventDefault(); openProjectSearch(); }
+    if (control && event.key === 'Enter') { event.preventDefault(); void runProject(); }
     if (control && key === 'i' && state.runSession) { event.preventDefault(); setWorkspaceView('execution'); setRuntimeInputVisible(true); }
     if (event.key === 'F5') { event.preventDefault(); runCurrentFile(); }
     if (event.key === 'Escape') { hideContextMenu(); closeKebabMenu(); closeFind(); hideSidebar(); document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.add('hidden')); }

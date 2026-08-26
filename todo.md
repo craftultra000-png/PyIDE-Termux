@@ -84,6 +84,14 @@
 - [x] Preselect the open destination directory for either creation action, while preserving existing item-context actions.
 - [x] Verify the new actions on desktop and a 390 px phone viewport, run regressions, and publish the update.
 
+## Project workflow, tabs, search, and Python completion
+
+- [x] Add safe project-wide text search with result paths, line numbers, and direct navigation to the matching editor line.
+- [x] Add open-file tabs with dirty-state indicators, safe close behavior, and restoration of editor state when switching tabs.
+- [x] Add a per-project run configuration with entry file, arguments, and working directory, and run through the existing execution-session lifecycle.
+- [x] Add lightweight local Python completion for keywords, built-ins, imports, and identifiers already present in the open document.
+- [x] Verify every flow on desktop and a 390 px phone viewport, run regressions, document the result, and publish the update.
+
 ## Execution input focus recovery
 
 - [x] Restore reliable Android keyboard input when a running Python file reaches `input()` in Execution.
