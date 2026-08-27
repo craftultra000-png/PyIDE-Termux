@@ -104,6 +104,13 @@
 - [x] Preserve immediate rendering for complete static images while avoiding premature GIF cards and exhausted browser retries.
 - [x] Verify a deliberately slow GIF write on desktop and a 390 px phone viewport, run regressions, document, and publish the fix.
 
+## Complete interface translations and language control
+
+- [x] Complete every existing interface translation key for Spanish, French, German, Turkish, Russian, and Hindi without English fallback.
+- [x] Keep code, paths, terminal output, and editor surfaces LTR while applying the selected interface language and correct RTL only for Arabic.
+- [x] Increase the language selector and option tap targets slightly while keeping the menu contained within a 390 px phone viewport.
+- [x] Verify all eight language selections, desktop and 390 px phone layouts, regressions, documentation, and publication.
+
 ## Execution input focus recovery
 
 - [x] Restore reliable Android keyboard input when a running Python file reaches `input()` in Execution.

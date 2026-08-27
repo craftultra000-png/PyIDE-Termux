@@ -7,7 +7,7 @@ import { Editor } from './editor.js';
 import { FileTree } from './filetree.js';
 import { Terminal } from './terminal.js';
 import { api, apiPost } from './core/api.js';
-import { applyTranslations, translate } from './core/i18n.js';
+import { applyTranslations, translate } from './core/i18n.js?v=20260828-language-complete-v3';
 import { isValidName, joinPath, parentPath } from './core/path-utils.js';
 import { LocationPicker } from './components/location-picker.js';
 import { CommandPalette } from './components/command-palette.js';
@@ -66,7 +66,7 @@ const settings = {
 
 const LANGUAGE_NAMES = { ar: 'العربية', en: 'English', es: 'Español', fr: 'Français', de: 'Deutsch', tr: 'Türkçe', ru: 'Русский', hi: 'हिन्दी' };
 const t = key => translate(settings.locale, key);
-const filetree = new FileTree($('filetree'), openFile, showContextMenu);
+const filetree = new FileTree($('filetree'), openFile, showContextMenu, t);
 const locationPicker = new LocationPicker({ getElement: $, api, t });
 const commandPalette = new CommandPalette({ getElement: $, openModal, closeModal });
 
@@ -114,6 +114,7 @@ function markDirty() {
 
 function applyLocale() {
   applyTranslations(settings.locale, t);
+  document.querySelectorAll('.modal-close').forEach(button => button.setAttribute('aria-label', t('close')));
   terminal.setPlaceholder(t('commandPlaceholder'));
   $('command-input').placeholder = t('commandPlaceholder');
   $('runtime-input')?.setAttribute('aria-label', t('runtimePlaceholder'));
@@ -121,6 +122,9 @@ function applyLocale() {
   $('quick-python-input')?.setAttribute('aria-label', t('quickPythonPlaceholder'));
   $('package-filter')?.setAttribute('placeholder', t('searchPackages'));
   $('set-language-value').textContent = LANGUAGE_NAMES[settings.locale] || settings.locale;
+  renderRootChips();
+  locationPicker.setRoots(state.roots.map(root => ({ ...root, label: localizedRootLabel(root) })));
+  configureCommandPalette();
   updateSaveStatus();
   updateToolbarContext();
 }
@@ -913,16 +917,20 @@ function toggleSidebar(force) {
   else hideSidebar();
 }
 
-async function loadRoots() {
-  const data = await api('/api/roots');
-  state.roots = data.roots || [];
-  locationPicker.setRoots(state.roots);
+function localizedRootLabel(root) {
+  const key = root.id === 'termux' ? 'termuxHome' : root.id === 'shared' ? 'sharedStorage' : root.id === 'internal' ? 'internalStorage' : null;
+  return key ? t(key) : root.label;
+}
+
+function renderRootChips({ activateFirst = false } = {}) {
   const rootBar = $('ft-roots');
+  const activePath = filetree.getRootPath();
   rootBar.replaceChildren(...state.roots.map(root => {
     const chip = document.createElement('button');
     chip.className = 'root-chip';
-    chip.textContent = root.label;
+    chip.textContent = localizedRootLabel(root);
     chip.title = root.path;
+    chip.classList.toggle('active', root.path === activePath);
     chip.addEventListener('click', async () => {
       rootBar.querySelectorAll('.root-chip').forEach(item => item.classList.remove('active'));
       chip.classList.add('active');
@@ -934,7 +942,14 @@ async function loadRoots() {
     });
     return chip;
   }));
-  rootBar.querySelector('.root-chip')?.click();
+  if (activateFirst) rootBar.querySelector('.root-chip')?.click();
+}
+
+async function loadRoots() {
+  const data = await api('/api/roots');
+  state.roots = data.roots || [];
+  locationPicker.setRoots(state.roots.map(root => ({ ...root, label: localizedRootLabel(root) })));
+  renderRootChips({ activateFirst: true });
 }
 
 async function loadPackageList() {
@@ -1084,20 +1099,20 @@ function replaceAll() {
 
 function configureCommandPalette() {
   commandPalette.setCommands([
-    { label: 'New file', shortcut: 'Ctrl+N', run: openNewFileModal },
-    { label: 'Save', shortcut: 'Ctrl+S', run: saveFile },
-    { label: 'Run file', shortcut: 'F5', run: runCurrentFile },
-    { label: 'Run project', run: runProject },
-    { label: 'Project search', shortcut: 'Ctrl+Shift+F', run: openProjectSearch },
-    { label: 'Run settings', run: openRunSettings },
-    { label: 'Find and replace', shortcut: 'Ctrl+F', run: openFind },
-    { label: 'Browse files', run: () => toggleSidebar(true) },
-    { label: 'Open settings', run: showSettings },
-    { label: 'Installed libraries', run: showLibraries },
-    { label: 'Toggle auto save', run: () => { settings.autoSave = !settings.autoSave; $('set-auto-save').checked = settings.autoSave; persistSettings(); } },
-    { label: 'Open terminal', shortcut: 'Ctrl+`', run: showTerminalPage },
-    { label: 'Quick Python', run: showQuickPythonPage },
-    { label: 'Disconnect Python session', run: disconnectAndCloseSession },
+    { label: t('newFile'), shortcut: 'Ctrl+N', run: openNewFileModal },
+    { label: t('save'), shortcut: 'Ctrl+S', run: saveFile },
+    { label: t('runFile'), shortcut: 'F5', run: runCurrentFile },
+    { label: t('projectRun'), run: runProject },
+    { label: t('projectSearch'), shortcut: 'Ctrl+Shift+F', run: openProjectSearch },
+    { label: t('runSettings'), run: openRunSettings },
+    { label: t('find'), shortcut: 'Ctrl+F', run: openFind },
+    { label: t('browseFiles'), run: () => toggleSidebar(true) },
+    { label: t('openSettings'), run: showSettings },
+    { label: t('installedLibraries'), run: showLibraries },
+    { label: t('toggleAutoSave'), run: () => { settings.autoSave = !settings.autoSave; $('set-auto-save').checked = settings.autoSave; persistSettings(); } },
+    { label: t('openTerminal'), shortcut: 'Ctrl+`', run: showTerminalPage },
+    { label: t('quickPython'), run: showQuickPythonPage },
+    { label: t('disconnectPythonSession'), run: disconnectAndCloseSession },
   ]);
 }
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { findRootForPath, isValidName, joinPath, parentPath } from '../static/js/core/path-utils.js';
-import { RTL_LOCALES, translate } from '../static/js/core/i18n.js';
+import { I18N, RTL_LOCALES, translate } from '../static/js/core/i18n.js';
 
 const roots = [
   { id: 'termux', path: '/data/data/com.termux/files/home' },
@@ -26,5 +26,9 @@ assert.equal(translate('en', 'completionHint').startsWith('Local Python completi
 assert.equal(translate('de', 'missing-key'), 'missing-key');
 assert.equal(RTL_LOCALES.has('ar'), true);
 assert.equal(RTL_LOCALES.has('en'), false);
+for (const locale of Object.keys(I18N)) {
+  const missing = Object.keys(I18N.ar).filter(key => !(key in I18N[locale]));
+  assert.deepEqual(missing, [], `${locale} must translate every interface key`);
+}
 
 console.log('JS unit tests: OK');

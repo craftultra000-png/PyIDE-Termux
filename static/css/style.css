@@ -77,3 +77,6 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}.terminal-output,.outpu
 
 /* GIF artifact contract: newly written animations may need a fresh read after Python exits. */
 .execution-artifact--loading img{min-height:140px;opacity:.28}.execution-artifact--loading figcaption{color:var(--blue-hi)}.execution-artifact--error{border-color:color-mix(in srgb,var(--bad) 58%,var(--line))}.execution-artifact--error figcaption{color:var(--warn)}
+
+/* Translation contract: the language control has a more legible, phone-ready touch target. */
+.language-dropdown{min-width:154px}.language-dropdown .dropdown-trigger{min-height:48px;padding-inline:13px;font-size:16px}.language-dropdown .dropdown-chevron{font-size:18px}.language-dropdown .dropdown-menu{min-width:100%;max-height:330px;padding:6px}.language-dropdown .dropdown-menu button{min-height:42px;padding:9px 11px;font-size:16px}@media(max-width:700px){.language-dropdown{min-width:166px}.language-dropdown .dropdown-trigger{min-height:50px;font-size:17px}.language-dropdown .dropdown-menu{max-height:min(360px,calc(100dvh - 180px))}.language-dropdown .dropdown-menu button{min-height:45px;font-size:17px}}

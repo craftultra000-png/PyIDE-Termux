@@ -217,3 +217,13 @@ The same deliberately incomplete GIF was run inside a 390 px-wide phone frame. A
 ## Stable animated-artifact delivery — 27 August 2026
 
 The original retry-only approach was replaced after observing that Pillow can keep a GIF open while it writes every animation frame. A deliberately slow GIF test confirmed that no artifact card appears during the write. When the Python process exits successfully, the completed GIF is delivered once, loads directly in Execution, and has a ready caption. The same flow was verified in a 390 px phone frame: the early check found no artifact and no exit marker, while the final check found a complete image with nonzero intrinsic width, no loading state, and no horizontal overflow.
+
+## Complete interface translations — 28 August 2026
+
+Automated browser verification selected Arabic, English, Spanish, French, German, Turkish, Russian, and Hindi in turn. Every rendered `data-i18n` element matched the selected locale catalog, with no fallback values. Arabic correctly set the document to RTL; the other seven languages set it to LTR. The language selector was enlarged to a 50 px mobile touch target with 45 px language options.
+
+The initial inspection revealed static English labels in the workspace-root chips and accessible control names. These were connected to the same locale catalog, including the command palette, theme-name captions, input placeholders, and all translated accessible names. A final desktop sweep confirmed that text nodes, titles, placeholders, and accessible labels match their selected catalog across all eight locales; Arabic is RTL and all other locales remain LTR. Code, paths, line numbers, terminal output, and editor surfaces remain explicitly LTR.
+
+On the final 390 px phone frame, the enlarged language trigger measured 166 × 50 px and every option measured 45 px high. The complete 360 px-high menu stayed inside the frame (left 21 px, right 187 px; top 294 px, bottom 654 px), with no horizontal overflow. Arabic, English, Spanish, French, German, Turkish, Russian, and Hindi each passed text and accessible-label checks inside the phone frame; Arabic was RTL and every other locale was LTR.
+
+Final regression passed on 28 August 2026: `git diff --check`, JavaScript syntax validation for `i18n.js` and `app.js`, the language-coverage JS unit test, Python byte-compilation, and `bash tests/run-tests.sh`. The full suite passed all 17 Python tests and the Termux launcher checks.

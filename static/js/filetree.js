@@ -63,10 +63,11 @@ export class FileTree {
    * @param {Function} onOpen   — called with entry object
    * @param {Function} onCtxMenu — called with (event, entry)
    */
-  constructor(container, onOpen, onCtxMenu) {
+  constructor(container, onOpen, onCtxMenu, t = key => key) {
     this.el       = container;
     this.onOpen   = onOpen;
     this.onCtxMenu = onCtxMenu;
+    this.t        = t;
     this._open    = new Set();   // expanded dir paths
     this._cache   = new Map();   // path → entries[]
     this._current = null;        // currently active file path
@@ -125,7 +126,7 @@ export class FileTree {
         entries = (data.entries || []).filter(entry => !entry.name.startsWith('.'));
         this._cache.set(dirPath, entries);
       } catch {
-        this._showError(container, 'لا يمكن الوصول');
+        this._showError(container, this.t('loadingError'));
         return;
       }
     }
