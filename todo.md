@@ -98,6 +98,12 @@
 - [x] Keep clickable image-preview behavior and static raster artifacts intact while handling animated GIF load failures gracefully.
 - [x] Verify a newly generated GIF on desktop and a 390 px phone viewport, run regressions, document, and publish the fix.
 
+## Stable animated-artifact detection
+
+- [x] Hold a newly detected GIF until its stat signature is stable across polling, or until its Python session has finished.
+- [x] Preserve immediate rendering for complete static images while avoiding premature GIF cards and exhausted browser retries.
+- [x] Verify a deliberately slow GIF write on desktop and a 390 px phone viewport, run regressions, document, and publish the fix.
+
 ## Execution input focus recovery
 
 - [x] Restore reliable Android keyboard input when a running Python file reaches `input()` in Execution.

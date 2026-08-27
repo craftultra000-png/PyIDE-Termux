@@ -112,6 +112,36 @@ class PythonHandlerTests(unittest.TestCase):
         self.assertTrue(result["done"])
         self.assertIn("chart.png", [artifact["name"] for artifact in artifacts])
 
+    def test_file_session_defers_gif_artifact_until_clean_exit(self):
+        with tempfile.TemporaryDirectory() as workspace:
+            path = os.path.join(workspace, "make_animation.py")
+            with open(path, "w", encoding="utf-8") as script:
+                script.write(
+                    "import base64, time\n"
+                    "gif = base64.b64decode('R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==')\n"
+                    "with open('animation.gif', 'wb') as output:\n"
+                    "    output.write(gif[:12])\n"
+                    "    output.flush()\n"
+                    "    time.sleep(0.3)\n"
+                    "    output.write(gif[12:])\n"
+                    "print('animation-ready', flush=True)\n"
+                )
+            started = start_file_session(path)
+            self.assertFalse(started["done"])
+            self.assertNotIn("animation.gif", [artifact["name"] for artifact in started["artifacts"]])
+            partial = poll_session(started["session"])
+            self.assertFalse(partial["done"])
+            self.assertNotIn("animation.gif", [artifact["name"] for artifact in partial["artifacts"]])
+            result = partial
+            for _ in range(10):
+                if result["done"]:
+                    break
+                time.sleep(0.05)
+                result = poll_session(started["session"])
+
+        self.assertTrue(result["done"])
+        self.assertIn("animation.gif", [artifact["name"] for artifact in result["artifacts"]])
+
     def test_file_session_uses_arguments_and_explicit_working_directory(self):
         with tempfile.TemporaryDirectory() as workspace:
             script_dir = os.path.join(workspace, "src")

@@ -213,3 +213,7 @@ The project run settings form stored `main.py`, a two-line argument list, and `.
 Desktop verification used a temporary Python file that created a GIF in two write operations with a delay in between, deliberately exposing the artifact before it was valid. Execution first showed a visible loading state, retried the preview with a cache-busting URL, and then changed to the ready caption automatically after the file was complete. The preview endpoint also now bases `Content-Length` on the bytes actually read, avoiding a stale pre-read size if an image is still growing.
 
 The same deliberately incomplete GIF was run inside a 390 px-wide phone frame. After the retry cycle, the image reported a nonzero natural width and height, the loading state was removed, the caption offered full-size opening, and the phone document had no horizontal overflow.
+
+## Stable animated-artifact delivery — 27 August 2026
+
+The original retry-only approach was replaced after observing that Pillow can keep a GIF open while it writes every animation frame. A deliberately slow GIF test confirmed that no artifact card appears during the write. When the Python process exits successfully, the completed GIF is delivered once, loads directly in Execution, and has a ready caption. The same flow was verified in a 390 px phone frame: the early check found no artifact and no exit marker, while the final check found a complete image with nonzero intrinsic width, no loading state, and no horizontal overflow.

@@ -40,6 +40,7 @@ class PythonSession:
             cwd = cwd or os.path.dirname(path)
         self.artifact_dir = cwd or TERMUX_HOME
         self._known_images = self._image_signatures()
+        self._pending_gifs: dict[str, tuple[int, int]] = {}
         self.process = subprocess.Popen(
             command,
             stdin=subprocess.PIPE,
@@ -66,13 +67,22 @@ class PythonSession:
             pass
         return images
 
-    def _new_images(self) -> list[dict]:
+    def _new_images(self, *, release_animated: bool = False) -> list[dict]:
+        """Return changed images, deferring GIFs until a successful process exit."""
         current = self._image_signatures()
-        artifacts = [
-            {"path": path, "name": os.path.basename(path), "size": signature[1]}
-            for path, signature in current.items()
-            if self._known_images.get(path) != signature
-        ]
+        artifacts = []
+        for path, signature in current.items():
+            changed = self._known_images.get(path) != signature
+            extension = os.path.splitext(path)[1].lower()
+            if extension == ".gif":
+                if changed:
+                    self._pending_gifs[path] = signature
+                if not release_animated or path not in self._pending_gifs:
+                    continue
+                self._pending_gifs.pop(path, None)
+                artifacts.append({"path": path, "name": os.path.basename(path), "size": signature[1]})
+            elif changed:
+                artifacts.append({"path": path, "name": os.path.basename(path), "size": signature[1]})
         self._known_images = current
         return sorted(artifacts, key=lambda artifact: artifact["name"].casefold())
 
@@ -109,7 +119,7 @@ class PythonSession:
             "output": output,
             "done": done,
             "returncode": returncode,
-            "artifacts": self._new_images(),
+            "artifacts": self._new_images(release_animated=done and returncode == 0),
         }
 
     def send(self, value: str) -> dict:
