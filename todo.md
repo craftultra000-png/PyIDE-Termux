@@ -111,6 +111,12 @@
 - [x] Increase the language selector and option tap targets slightly while keeping the menu contained within a 390 px phone viewport.
 - [x] Verify all eight language selections, desktop and 390 px phone layouts, regressions, documentation, and publication.
 
+## Stable More-menu toolbar placement
+
+- [x] Keep the More-menu trigger at the correct logical toolbar edge after returning from Execution, Terminal, or Quick Python.
+- [x] Verify the toolbar direction, More-menu anchor, and open menu on desktop and a 390 px phone viewport in Arabic and an LTR locale.
+- [x] Run regressions, document the result, and publish the verified correction.
+
 ## Execution input focus recovery
 
 - [x] Restore reliable Android keyboard input when a running Python file reaches `input()` in Execution.

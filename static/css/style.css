@@ -79,4 +79,11 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}.terminal-output,.outpu
 .execution-artifact--loading img{min-height:140px;opacity:.28}.execution-artifact--loading figcaption{color:var(--blue-hi)}.execution-artifact--error{border-color:color-mix(in srgb,var(--bad) 58%,var(--line))}.execution-artifact--error figcaption{color:var(--warn)}
 
 /* Translation contract: the language control has a more legible, phone-ready touch target. */
+/* Toolbar contract: More remains physically on the right in RTL and LTR views. */
+.toolbar{direction:ltr}
+.toolbar-file-context{order:1}
+.toolbar-actions{order:2;margin-inline-start:auto;margin-inline-end:0;flex-direction:row-reverse}
+html[dir] .kebab-menu{inset-inline-start:auto;inset-inline-end:0;transform-origin:top right}
+html[dir="rtl"] .toolbar-active-file--tool{direction:rtl;text-align:right}
+@media(max-width:700px){html[dir] .kebab-menu{inset-inline-start:auto;inset-inline-end:8px}}
 .language-dropdown{min-width:154px}.language-dropdown .dropdown-trigger{min-height:48px;padding-inline:13px;font-size:16px}.language-dropdown .dropdown-chevron{font-size:18px}.language-dropdown .dropdown-menu{min-width:100%;max-height:330px;padding:6px}.language-dropdown .dropdown-menu button{min-height:42px;padding:9px 11px;font-size:16px}@media(max-width:700px){.language-dropdown{min-width:166px}.language-dropdown .dropdown-trigger{min-height:50px;font-size:17px}.language-dropdown .dropdown-menu{max-height:min(360px,calc(100dvh - 180px))}.language-dropdown .dropdown-menu button{min-height:45px;font-size:17px}}

@@ -227,3 +227,11 @@ The initial inspection revealed static English labels in the workspace-root chip
 On the final 390 px phone frame, the enlarged language trigger measured 166 × 50 px and every option measured 45 px high. The complete 360 px-high menu stayed inside the frame (left 21 px, right 187 px; top 294 px, bottom 654 px), with no horizontal overflow. Arabic, English, Spanish, French, German, Turkish, Russian, and Hindi each passed text and accessible-label checks inside the phone frame; Arabic was RTL and every other locale was LTR.
 
 Final regression passed on 28 August 2026: `git diff --check`, JavaScript syntax validation for `i18n.js` and `app.js`, the language-coverage JS unit test, Python byte-compilation, and `bash tests/run-tests.sh`. The full suite passed all 17 Python tests and the Termux launcher checks.
+
+## Stable More-menu toolbar placement — 28 August 2026
+
+The toolbar now uses an intentionally LTR physical layout: Files stay on the left while More stays on the right, independently from the locale’s text direction. On desktop, an actual open-file → Run → Execution → Back sequence was exercised in Arabic and Hindi. In both cases, the returned editor showed More 14 px from the right viewport edge, and its open menu aligned to the same right edge. The locale remained independent from the navigation state.
+
+The same actual sequence passed in a 390 × 760 phone frame in Arabic and Hindi. After returning from Execution, More measured from x=348 to x=382, so it remained 8 px from the right edge. Its menu measured from x=151 to x=382 and aligned with the trigger on the right. The phone frame had no horizontal overflow, and Arabic was restored after the check.
+
+Final regression passed after the placement correction: `git diff --check`, JavaScript syntax validation, Python byte-compilation, the JavaScript unit suite, all 17 Python tests, and the Termux launcher checks.
