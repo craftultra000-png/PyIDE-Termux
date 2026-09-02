@@ -12,6 +12,7 @@ import { isValidName, joinPath, parentPath } from './core/path-utils.js';
 import { LocationPicker } from './components/location-picker.js';
 import { CommandPalette } from './components/command-palette.js';
 import { PythonCompletion } from './components/python-completion.js';
+import { createWebGLViewer, parseWebGLScene } from './webgl-viewer.js';
 
 /** @param {string} id @returns {HTMLElement} */
 const $ = id => document.getElementById(id);
@@ -44,6 +45,7 @@ const state = {
   previewFile: null,
   previewReturnView: 'welcome',
   runArtifacts: new Set(),
+  webglDisposers: new Map(),
   packages: [],
   tabs: [],
   projectRoot: null,
@@ -471,6 +473,31 @@ function appendRunOutput(text, className = 'out-stdout') {
   $('output-content').scrollTop = $('output-content').scrollHeight;
 }
 
+function disposeWebGLArtifacts() {
+  for (const dispose of state.webglDisposers.values()) dispose();
+  state.webglDisposers.clear();
+}
+
+async function appendWebGLArtifact(artifact, output) {
+  const figure = document.createElement('figure');
+  figure.className = 'execution-artifact execution-artifact--webgl';
+  const viewer = document.createElement('div');
+  viewer.className = 'webgl-viewer';
+  const caption = document.createElement('figcaption');
+  caption.textContent = `${artifact.name || 'Interactive WebGL'} · المس باللمس للدوران والتكبير`;
+  figure.append(viewer, caption);
+  output.append(figure);
+  try {
+    const data = await api(`/api/file?path=${encodeURIComponent(artifact.path)}`);
+    if (data.error || typeof data.content !== 'string') throw new Error(data.error || 'Invalid WebGL scene');
+    const dispose = createWebGLViewer(viewer, parseWebGLScene(data.content));
+    state.webglDisposers.set(artifact.path, dispose);
+  } catch (error) {
+    viewer.classList.add('webgl-viewer--error');
+    viewer.textContent = `WebGL: ${error.message}`;
+  }
+}
+
 function appendRunArtifacts(artifacts = []) {
   if (!Array.isArray(artifacts) || !artifacts.length) return;
   const output = $('output-content');
@@ -480,6 +507,10 @@ function appendRunArtifacts(artifacts = []) {
     if (state.runtimeInputRow?.isConnected) {
       state.runtimeInputRow.remove();
       state.runtimeFocusRequested = false;
+    }
+    if (artifact.kind === 'webgl') {
+      void appendWebGLArtifact(artifact, output);
+      continue;
     }
     const figure = document.createElement('figure');
     figure.className = 'execution-artifact execution-artifact--loading';
@@ -570,6 +601,7 @@ function finishRunSession(returncode) {
 }
 
 function clearExecution() {
+  disposeWebGLArtifacts();
   $('output-content').replaceChildren();
   if (state.runSession) setRuntimeInputVisible(true);
   else $('output-content').innerHTML = `<div class="output-empty"><span>${t('runHint')}</span></div>`;
@@ -702,6 +734,7 @@ async function disconnectAndCloseSession() {
 /** @param {{ error?: string, output?: string, session?: string, done?: boolean, returncode?: number }} data */
 function handleRunSession(data) {
   if (data.error) { appendRunOutput(data.error, 'out-stderr'); finishRunSession(-1); return; }
+  disposeWebGLArtifacts();
   $('output-content').replaceChildren();
   state.runArtifacts = new Set();
   appendRunOutput(data.output || '');

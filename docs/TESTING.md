@@ -235,3 +235,14 @@ The toolbar now uses an intentionally LTR physical layout: Files stay on the lef
 The same actual sequence passed in a 390 × 760 phone frame in Arabic and Hindi. After returning from Execution, More measured from x=348 to x=382, so it remained 8 px from the right edge. Its menu measured from x=151 to x=382 and aligned with the trigger on the right. The phone frame had no horizontal overflow, and Arabic was restored after the check.
 
 Final regression passed after the placement correction: `git diff --check`, JavaScript syntax validation, Python byte-compilation, the JavaScript unit suite, all 17 Python tests, and the Termux launcher checks.
+
+
+## Editor bidi integrity and hybrid WebGL output — 02 September 2026
+
+The editor reproduction used pasted Python containing Arabic comments, Arabic and Latin strings, punctuation, and long mixed-language lines. Both the transparent textarea and syntax overlay now report `direction: ltr`, `unicode-bidi: embed`, `white-space: pre`, and matching horizontal overflow. Selecting the full 157-character sample kept the selection range intact from 0 to 157, with no horizontal overflow or line-box inversion. The code gutter remained separate on the left in the desktop visual pass.
+
+The execution path now recognizes `*.pyide-webgl.json` and `*.webgl.json` files written by a Python process as interactive artifacts. A local Three.js renderer displays box, sphere, or torus scenes with automatic rotation, pointer/touch orbit, and wheel zoom. Existing raster image and GIF artifacts continue through the existing image preview path. A real Python run produced `scene-two.pyide-webgl.json`, rendered a torus in a 738 × 280 desktop canvas, and showed the touch/orbit caption inside Execution.
+
+In a same-origin 390 × 760 phone frame, the WebGL canvas measured 326 × 220, the output area had zero horizontal overflow, and the body remained 390 px wide. The editor and WebGL output remained within the phone layout. If the browser lacks a WebGL context, the viewer keeps the output page usable and reports a bounded WebGL-unavailable message instead of breaking the execution page.
+
+The final regression passed: `git diff --check`, JavaScript syntax checks for `app.js` and `webgl-viewer.js`, JavaScript unit tests, Python byte-compilation, all 18 Python tests, and the Termux launcher tests.

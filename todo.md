@@ -117,6 +117,12 @@
 - [x] Verify the toolbar direction, More-menu anchor, and open menu on desktop and a 390 px phone viewport in Arabic and an LTR locale.
 - [x] Run regressions, document the result, and publish the verified correction.
 
+## Editor text integrity and hybrid WebGL output
+
+- [x] Reproduce and fix broken pasted text, selection rendering, and LTR editor overlap for affected mixed-language scripts.
+- [x] Add a local interactive WebGL output path while preserving Matplotlib, image, and GIF rendering as fallback paths.
+- [x] Test editor paste/selection and WebGL fallback behavior on desktop and a 390 px phone viewport, then document and publish the changes.
+
 ## Execution input focus recovery
 
 - [x] Restore reliable Android keyboard input when a running Python file reaches `input()` in Execution.

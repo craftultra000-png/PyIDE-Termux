@@ -87,3 +87,13 @@ html[dir] .kebab-menu{inset-inline-start:auto;inset-inline-end:0;transform-origi
 html[dir="rtl"] .toolbar-active-file--tool{direction:rtl;text-align:right}
 @media(max-width:700px){html[dir] .kebab-menu{inset-inline-start:auto;inset-inline-end:8px}}
 .language-dropdown{min-width:154px}.language-dropdown .dropdown-trigger{min-height:48px;padding-inline:13px;font-size:16px}.language-dropdown .dropdown-chevron{font-size:18px}.language-dropdown .dropdown-menu{min-width:100%;max-height:330px;padding:6px}.language-dropdown .dropdown-menu button{min-height:42px;padding:9px 11px;font-size:16px}@media(max-width:700px){.language-dropdown{min-width:166px}.language-dropdown .dropdown-trigger{min-height:50px;font-size:17px}.language-dropdown .dropdown-menu{max-height:min(360px,calc(100dvh - 180px))}.language-dropdown .dropdown-menu button{min-height:45px;font-size:17px}}
+
+/* Editor text contract: mixed Arabic/Latin code keeps one physical LTR line box. */
+.editor-textarea,.syntax-overlay{direction:ltr!important;text-align:left!important;unicode-bidi:embed!important;writing-mode:horizontal-tb}
+.editor-textarea::selection{background:#2f7cf6aa;color:transparent}
+.execution-artifact--webgl{overflow:hidden}
+.webgl-viewer{width:100%;min-height:280px;overflow:hidden;border-radius:6px;background:#0d1722;touch-action:none}
+.webgl-canvas{display:block;width:100%;height:280px;cursor:grab;touch-action:none}
+.webgl-canvas:active{cursor:grabbing}
+.webgl-viewer--error{display:grid;min-height:140px;place-items:center;padding:20px;color:var(--bad);font:12px var(--mono);text-align:center}
+@media(max-width:700px){.webgl-viewer{min-height:220px}.webgl-canvas{height:220px}.execution-artifact--webgl{margin:10px 0;padding:7px}}

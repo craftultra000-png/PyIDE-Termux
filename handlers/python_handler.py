@@ -18,6 +18,7 @@ from config import PYTHON_BIN, RUN_TIMEOUT, TERMUX_HOME
 _SESSIONS: dict[str, "PythonSession"] = {}
 _SESSIONS_LOCK = threading.Lock()
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
+WEBGL_EXTENSIONS = {".webgl.json", ".pyide-webgl.json"}
 
 
 def _close_session(session: "PythonSession") -> None:
@@ -40,6 +41,7 @@ class PythonSession:
             cwd = cwd or os.path.dirname(path)
         self.artifact_dir = cwd or TERMUX_HOME
         self._known_images = self._image_signatures()
+        self._known_webgl = self._webgl_signatures()
         self._pending_gifs: dict[str, tuple[int, int]] = {}
         self.process = subprocess.Popen(
             command,
@@ -67,6 +69,29 @@ class PythonSession:
             pass
         return images
 
+    def _webgl_signatures(self) -> dict[str, tuple[int, int]]:
+        """Map interactive WebGL scene files in the run directory to mtime and size."""
+        scenes = {}
+        try:
+            for entry in os.scandir(self.artifact_dir):
+                if not entry.is_file() or not any(entry.name.lower().endswith(ext) for ext in WEBGL_EXTENSIONS):
+                    continue
+                stat = entry.stat()
+                scenes[entry.path] = (stat.st_mtime_ns, stat.st_size)
+        except OSError:
+            pass
+        return scenes
+
+    def _new_webgl(self) -> list[dict]:
+        current = self._webgl_signatures()
+        artifacts = [
+            {"path": path, "name": os.path.basename(path), "size": signature[1], "kind": "webgl"}
+            for path, signature in current.items()
+            if self._known_webgl.get(path) != signature
+        ]
+        self._known_webgl = current
+        return sorted(artifacts, key=lambda artifact: artifact["name"].casefold())
+
     def _new_images(self, *, release_animated: bool = False) -> list[dict]:
         """Return changed images, deferring GIFs until a successful process exit."""
         current = self._image_signatures()
@@ -85,6 +110,9 @@ class PythonSession:
                 artifacts.append({"path": path, "name": os.path.basename(path), "size": signature[1]})
         self._known_images = current
         return sorted(artifacts, key=lambda artifact: artifact["name"].casefold())
+
+    def _new_artifacts(self, *, release_animated: bool = False) -> list[dict]:
+        return self._new_images(release_animated=release_animated) + self._new_webgl()
 
     def _drain(self, wait_seconds: float = 0.0) -> str:
         """Collect every byte currently available, including input() prompts."""
@@ -119,7 +147,7 @@ class PythonSession:
             "output": output,
             "done": done,
             "returncode": returncode,
-            "artifacts": self._new_images(release_animated=done and returncode == 0),
+            "artifacts": self._new_artifacts(release_animated=done and returncode == 0),
         }
 
     def send(self, value: str) -> dict:

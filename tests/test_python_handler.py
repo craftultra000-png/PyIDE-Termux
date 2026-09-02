@@ -89,6 +89,28 @@ class PythonHandlerTests(unittest.TestCase):
 
         self.assertTrue(stopped["stopped"])
 
+    def test_file_session_reports_new_webgl_scene_artifact(self):
+        with tempfile.TemporaryDirectory() as workspace:
+            path = os.path.join(workspace, "make_scene.py")
+            with open(path, "w", encoding="utf-8") as script:
+                script.write(
+                    "from pathlib import Path\n"
+                    "Path('scene.pyide-webgl.json').write_text('{\\\"type\\\":\\\"box\\\",\\\"size\\\":2}', encoding='utf-8')\n"
+                    "print('scene-ready', flush=True)\n"
+                )
+            result = start_file_session(path)
+            artifacts = list(result.get("artifacts", []))
+            for _ in range(8):
+                if result.get("done"):
+                    break
+                time.sleep(0.05)
+                result = poll_session(result["session"])
+                artifacts.extend(result.get("artifacts", []))
+
+        self.assertTrue(result["done"])
+        scenes = [artifact for artifact in artifacts if artifact.get("kind") == "webgl"]
+        self.assertEqual([scene["name"] for scene in scenes], ["scene.pyide-webgl.json"])
+
     def test_file_session_reports_new_raster_image_artifact(self):
         with tempfile.TemporaryDirectory() as workspace:
             path = os.path.join(workspace, "make_chart.py")
