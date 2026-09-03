@@ -788,9 +788,11 @@ function showContextMenu(event, entry) {
   state.contextTarget = entry;
   const menu = $('context-menu');
   const destinationMenu = Boolean(entry.isDestination);
+  const folderMenu = Boolean(entry.isDir && !entry.isDestination);
   menu.classList.toggle('context-menu--destination', destinationMenu);
+  menu.classList.toggle('context-menu--folder', folderMenu);
   menu.querySelector('[data-action="paste"]').classList.toggle('ctx-paste-disabled', !state.clipboard);
-  $('context-paste-label').textContent = destinationMenu ? t('pasteHere') : t('paste');
+  $('context-paste-label').textContent = entry.isDir ? t('pasteHere') : t('paste');
   menu.classList.remove('hidden');
   menu.style.left = `${Math.min(event.clientX, window.innerWidth - 175)}px`;
   menu.style.top = `${Math.min(event.clientY, window.innerHeight - 220)}px`;
@@ -1173,17 +1175,17 @@ function bindEvents() {
     if (item.dataset.action === 'rename') return openRenameModal(target);
     if (item.dataset.action === 'copy') { state.clipboard = { action: 'copy', path: target.path }; return toast(t('copied')); }
     if (item.dataset.action === 'cut') { state.clipboard = { action: 'cut', path: target.path }; return toast(t('cutDone')); }
-    if (item.dataset.action === 'new-file' && target.isDestination) return openNewFileModal(target.path);
-    if (item.dataset.action === 'new-folder' && target.isDestination) return openNewFolderModal(target.path);
+    if (item.dataset.action === 'new-file' && (target.isDestination || target.isDir)) return openNewFileModal(target.path);
+    if (item.dataset.action === 'new-folder' && (target.isDestination || target.isDir)) return openNewFolderModal(target.path);
     if (item.dataset.action === 'paste') return pasteClipboard(target);
     if (item.dataset.action === 'download') return downloadFile(target.path);
     if (item.dataset.action === 'delete') openDeleteModal(target);
   });
 
   $('btn-kebab-toggle').addEventListener('click', event => { event.stopPropagation(); toggleKebabMenu(); });
-  $('btn-new').addEventListener('click', () => { closeKebabMenu(); openNewFileModal(); }); $('btn-close-file').addEventListener('click', closeCurrentFile); $('welcome-new').addEventListener('click', openNewFileModal);
+  $('btn-new').addEventListener('click', () => { closeKebabMenu(); openNewFileModal(); }); $('btn-close-file').addEventListener('click', closeCurrentFile); $('welcome-new').addEventListener('click', () => openNewFileModal());
   $('btn-project-search').addEventListener('click', () => { closeKebabMenu(); openProjectSearch(); }); $('btn-project-run').addEventListener('click', () => { closeKebabMenu(); void runProject(); }); $('btn-run-settings').addEventListener('click', () => { closeKebabMenu(); void openRunSettings(); });
-  $('ft-new-file').addEventListener('click', openNewFileModal); $('ft-new-folder').addEventListener('click', openNewFolderModal);
+  $('ft-new-file').addEventListener('click', () => openNewFileModal()); $('ft-new-folder').addEventListener('click', () => openNewFolderModal());
   $('new-file-location').addEventListener('click', () => openLocationPicker('file')); $('new-folder-location').addEventListener('click', () => openLocationPicker('folder'));
   $('btn-new-file-confirm').addEventListener('click', createFile); $('btn-new-folder-confirm').addEventListener('click', createFolder);
   $('btn-save-run-settings').addEventListener('click', saveProjectRunSettings);

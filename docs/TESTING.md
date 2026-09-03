@@ -246,3 +246,12 @@ The execution path now recognizes `*.pyide-webgl.json` and `*.webgl.json` files 
 In a same-origin 390 × 760 phone frame, the WebGL canvas measured 326 × 220, the output area had zero horizontal overflow, and the body remained 390 px wide. The editor and WebGL output remained within the phone layout. If the browser lacks a WebGL context, the viewer keeps the output page usable and reports a bounded WebGL-unavailable message instead of breaking the execution page.
 
 The final regression passed: `git diff --check`, JavaScript syntax checks for `app.js` and `webgl-viewer.js`, JavaScript unit tests, Python byte-compilation, all 18 Python tests, and the Termux launcher tests.
+
+
+## Selected-folder creation actions — 03 September 2026
+
+The supplied `0.zip` was inspected and contained two 1080 × 2400 JPEG screenshots. The first showed `[object PointerEvent]` in the location field and `path2.startsWith is not a function`; the second showed a selected file context menu without the requested folder-creation actions. The cause was confirmed in the click bindings: creation functions were receiving the click event as their destination argument instead of a path string.
+
+The fix wraps direct creation-button handlers so they do not pass the event object, and adds a folder context-menu state. When a directory is selected, its menu now shows both Create file and Create folder and passes the selected directory path to the corresponding naming modal. The actions remain hidden for a selected file. Desktop verification created a temporary folder and an empty text file inside `/home/ubuntu/diagnostics`; both naming modals showed `/home/ubuntu/diagnostics`, closed after success, and produced the expected paths. The temporary entries were removed afterwards.
+
+A same-origin 390 × 760 phone frame showed both creation actions, zero menu overflow, a string directory path, and a 368 px modal with zero horizontal overflow. Final checks passed: `git diff --check`, JavaScript syntax validation, JavaScript unit tests, Python byte-compilation, all 18 Python tests, and Termux launcher tests.

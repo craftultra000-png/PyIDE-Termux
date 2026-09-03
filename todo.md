@@ -198,3 +198,9 @@
 - [x] Verify Python `input()` accepts sequential values on desktop and phone layouts.
 - [x] Verify terminal commands accept ordinary typing and Enter on desktop and phone layouts.
 - [x] Publish the fix to GitHub.
+
+## Selected-folder creation actions
+
+- [x] Add Create folder and Create file actions to the selected-folder context menu, each targeting the selected directory.
+- [x] Fix the naming prompt and creation request so the entered folder or file is created once in the selected directory.
+- [x] Test selected-folder creation on desktop and a 390 px phone viewport, document the result, and publish the fix.
