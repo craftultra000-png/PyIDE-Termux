@@ -204,3 +204,8 @@
 - [x] Add Create folder and Create file actions to the selected-folder context menu, each targeting the selected directory.
 - [x] Fix the naming prompt and creation request so the entered folder or file is created once in the selected directory.
 - [x] Test selected-folder creation on desktop and a 390 px phone viewport, document the result, and publish the fix.
+
+## Context menu dismissal without sidebar collapse
+
+- [x] Close the context menu on outside press without collapsing the sidebar.
+- [x] Preserve folder navigation and long-press context-menu behavior on desktop and a 390 px phone viewport, then document and publish the fix.

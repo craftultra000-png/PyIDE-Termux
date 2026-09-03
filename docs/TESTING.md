@@ -255,3 +255,11 @@ The supplied `0.zip` was inspected and contained two 1080 × 2400 JPEG screensho
 The fix wraps direct creation-button handlers so they do not pass the event object, and adds a folder context-menu state. When a directory is selected, its menu now shows both Create file and Create folder and passes the selected directory path to the corresponding naming modal. The actions remain hidden for a selected file. Desktop verification created a temporary folder and an empty text file inside `/home/ubuntu/diagnostics`; both naming modals showed `/home/ubuntu/diagnostics`, closed after success, and produced the expected paths. The temporary entries were removed afterwards.
 
 A same-origin 390 × 760 phone frame showed both creation actions, zero menu overflow, a string directory path, and a 368 px modal with zero horizontal overflow. Final checks passed: `git diff --check`, JavaScript syntax validation, JavaScript unit tests, Python byte-compilation, all 18 Python tests, and Termux launcher tests.
+
+
+## Context-menu dismissal — 03 September 2026
+
+The context menu now closes on the first outside `pointerdown`, including a press on another folder inside the file sidebar or a press in the editor area. The dismissal handler only calls `hideContextMenu()` and never calls `hideSidebar()`. Desktop browser verification confirmed that the menu closed while the sidebar remained open in both cases (`sidebarOpen: true`). The same pointer-based behavior is designed for long-press/touch input and will be included in the final regression record.
+
+
+The final 390 × 760 phone-frame check opened the sidebar and context menu with touch-style pointer events. Pressing inside the sidebar closed the menu while keeping `sidebarOpen: true`; pressing in the editor area produced the same result. The frame remained 390 px wide with `scrollWidth: 390`, so no horizontal overflow was introduced.

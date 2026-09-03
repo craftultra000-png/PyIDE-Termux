@@ -1165,7 +1165,11 @@ function bindDropdown(dropdownId, triggerId, menuId, onSelect) {
 function bindEvents() {
   document.querySelectorAll('[data-modal]').forEach(button => button.addEventListener('click', () => closeModal(button.dataset.modal)));
   document.querySelectorAll('.modal-overlay').forEach(overlay => overlay.addEventListener('click', event => { if (event.target === overlay) overlay.classList.add('hidden'); }));
-  document.addEventListener('click', event => { if (!$('context-menu').contains(event.target)) hideContextMenu(); if (!$('kebab').contains(event.target)) closeKebabMenu(); document.querySelectorAll('.settings-dropdown.open').forEach(dropdown => { if (!dropdown.contains(event.target)) dropdown.classList.remove('open'); }); });
+  document.addEventListener('pointerdown', event => {
+    const menu = $('context-menu');
+    if (!menu.classList.contains('hidden') && !menu.contains(event.target)) hideContextMenu();
+  }, true);
+  document.addEventListener('click', event => { if (!$('kebab').contains(event.target)) closeKebabMenu(); document.querySelectorAll('.settings-dropdown.open').forEach(dropdown => { if (!dropdown.contains(event.target)) dropdown.classList.remove('open'); }); });
 
   $('context-menu').addEventListener('click', async event => {
     const item = event.target.closest('li'); const target = state.contextTarget;
